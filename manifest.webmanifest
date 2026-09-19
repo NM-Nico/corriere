@@ -1,6 +1,6 @@
 {
  "name": "Giro Ossigeno",
- "short_name": "Giro MediAir",
+ "short_name": "Giro MedicAir",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
