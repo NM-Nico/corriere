@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Giro Ossigeno</title>
+<meta name="theme-color" content="#0E6B47">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EEEA; --surface:#FFFFFF; --surface2:#F3F6F4; --ink:#14201A; --muted:#56665E; --line:#D0D9D4;
+  --oxy:#0E6B47; --oxy-ink:#FFFFFF; --oxy-soft:#DAEEE3; --focus:#1E88E5;
+  --late:#B3261E; --late-soft:#FCE7E4; --later:#8F5200; --later-soft:#FBEBD2;
+  --f-body:"Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-cond:"Barlow Condensed", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1411; --surface:#17201B; --surface2:#1D2822; --ink:#E6EEE9; --muted:#9AABA2; --line:#2B3831;
+    --oxy:#2E9E6C; --oxy-ink:#FFFFFF; --oxy-soft:#1C3A2C; --focus:#64B5F6;
+    --late:#FF7A6E; --late-soft:#3A1D1A; --later:#F2AE4B; --later-soft:#3A2B15;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1411; --surface:#17201B; --surface2:#1D2822; --ink:#E6EEE9; --muted:#9AABA2; --line:#2B3831;
+  --oxy:#2E9E6C; --oxy-ink:#FFFFFF; --oxy-soft:#1C3A2C; --focus:#64B5F6;
+  --late:#FF7A6E; --late-soft:#3A1D1A; --later:#F2AE4B; --later-soft:#3A2B15;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:16px/1.4 var(--f-body);-webkit-tap-highlight-color:transparent}
+body.no-scroll{overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+[hidden]{display:none !important}
+.app{max-width:760px;margin:0 auto;padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+
+/* Header del giro */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--oxy);color:var(--oxy-ink);padding:8px 8px 10px}
+.top-row{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:4px}
+.icon-btn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:30px;line-height:1}
+.icon-btn:active{background:rgba(255,255,255,.15)}
+.top-date{text-align:center;min-width:0}
+.top-date h1{margin:0;font:600 27px/1.05 var(--f-cond);letter-spacing:.005em}
+.top-date .when{font-size:14px;opacity:.85;min-height:18px}
+.top-date button.pick{padding:2px 8px;border-radius:8px}
+.back-today{display:inline-block;margin-top:4px;font-size:14px;font-weight:600;padding:4px 12px;border-radius:999px;background:rgba(255,255,255,.18)}
+.week{display:flex;gap:4px;margin-top:10px}
+.wd{flex:1;min-width:0;border-radius:10px;padding:6px 2px 5px;text-align:center;background:rgba(255,255,255,.1);position:relative}
+.wd .d1{display:block;font-size:12px;opacity:.85}
+.wd .d2{display:block;font:600 20px/1.1 var(--f-cond)}
+.wd .n{display:block;font-size:12px;font-weight:600;opacity:.9}
+.wd.sel{background:var(--surface);color:var(--oxy)}
+.wd.today::after{content:"";position:absolute;left:50%;top:3px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:currentColor}
+.wd.has-late .n{color:#FFD9D4}
+.wd.sel.has-late .n{color:var(--late)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.stat{background:var(--surface);padding:10px 6px 9px;text-align:center}
+.stat b{display:block;font:700 28px/1 var(--f-cond)}
+.stat span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.stat-btn{position:relative}
+.stat-btn span{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.stat-btn.warn b{color:var(--later)}
+
+/* Liste */
+.sec{padding:18px 14px 6px;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sec h2{margin:0;font:600 22px/1.1 var(--f-cond)}
+.sec .c{font-size:14px;color:var(--muted);white-space:nowrap}
+.sec.late h2,.sec.late .c{color:var(--late)}
+.sec-note{padding:0 14px 8px;font-size:14px;color:var(--muted)}
+.list{background:var(--surface);border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:6px;padding:8px 12px 8px 8px;border-bottom:1px solid var(--line);min-height:64px}
+.row.late{background:var(--late-soft)}
+.check{width:46px;height:46px;border-radius:50%;border:2.5px solid var(--oxy);display:grid;place-items:center;margin:0 auto;background:var(--surface)}
+.check svg{width:24px;height:24px;opacity:0}
+.check:active{background:var(--oxy-soft)}
+.row.late .check{border-color:var(--late)}
+.row.done .check{background:var(--oxy);border-color:var(--oxy);color:#fff;cursor:default}
+.row.done .check svg{opacity:1}
+.row-main{display:flex;flex-direction:column;justify-content:center;min-height:48px;min-width:0;padding:2px 4px}
+.nome{font-weight:700;font-size:17px;line-height:1.2;overflow-wrap:anywhere}
+.meta{font-size:14px;color:var(--muted);line-height:1.3}
+.meta .lt{color:var(--late);font-weight:600}
+.meta .rv{color:var(--later);font-weight:600}
+.note{font-size:14px;line-height:1.3;margin-top:2px;overflow-wrap:anywhere}
+.row.done .nome{text-decoration:line-through;text-decoration-thickness:1.5px;color:var(--muted)}
+.row.done .cnt{opacity:.55}
+.undo-btn{font-size:14px;font-weight:600;color:var(--oxy);padding:8px 4px;text-align:left}
+
+.cnt{font:700 24px/1 var(--f-cond);min-width:54px;padding:5px 8px 6px;text-align:center;border:2px solid var(--ink);border-top-width:7px;border-radius:14px 14px 6px 6px;background:var(--surface);white-space:nowrap;color:var(--ink)}
+.cnt.long{font-size:17px;min-width:0;padding:6px 6px}
+.cnt.warn{border-color:var(--late);color:var(--late)}
+.cnt.sm{font-size:18px;min-width:44px;border-top-width:5px;padding:3px 6px 4px;border-radius:11px 11px 5px 5px}
+.cnt.sm.long{font-size:14px}
+
+.empty{padding:36px 22px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font:600 22px/1.2 var(--f-cond);margin-bottom:6px}
+.foot-actions{padding:18px 14px;display:flex;gap:10px;flex-wrap:wrap}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border-radius:12px;font-weight:600;border:1.5px solid var(--line);background:var(--surface)}
+.btn.primary{background:var(--oxy);border-color:var(--oxy);color:var(--oxy-ink)}
+.btn.danger{color:var(--late);border-color:var(--late)}
+.btn.block{display:flex;width:100%}
+.btn small{font-weight:500;opacity:.8}
+.btn:disabled{opacity:.45;cursor:default}
+
+.fab{position:fixed;right:14px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:6;height:54px;padding:0 22px 0 18px;border-radius:27px;background:var(--ink);color:var(--bg);font:600 20px/1 var(--f-cond);display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.fab svg{width:22px;height:22px}
+
+/* Navigazione */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;font-size:13px;font-weight:600;color:var(--muted);min-height:58px}
+.nav button svg{width:24px;height:24px}
+.nav button[aria-current="page"]{color:var(--oxy)}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--late);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:3px}
+
+/* Pagine */
+.page-h{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:14px 14px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.page-h h1{margin:0;font:600 30px/1 var(--f-cond);flex:1}
+.page-h .sub{font-size:14px;color:var(--muted)}
+.search{padding:12px 14px 4px}
+.search input{width:100%;height:48px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:0 14px;font-size:17px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 14px 10px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:36px;padding:0 14px;border-radius:18px;border:1.5px solid var(--line);background:var(--surface);font-weight:600;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.warn{border-color:var(--late);color:var(--late)}
+.chip.warn[aria-pressed="true"]{background:var(--late);color:#fff}
+.prow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;width:100%;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+.more{display:block;width:100%;padding:16px;text-align:center;font-weight:600;color:var(--oxy)}
+.hday{padding:16px 14px 6px;font:600 20px/1.1 var(--f-cond)}
+.hrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 7px;border-radius:6px;margin-right:4px;vertical-align:1px}
+.tag.ok{background:var(--oxy-soft);color:var(--oxy)}
+.tag.rv{background:var(--later-soft);color:var(--later)}
+.tag.ag{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin:10px 14px;padding:14px}
+.card h3{margin:0 0 4px;font:600 21px/1.15 var(--f-cond)}
+.card p{margin:0 0 10px;color:var(--muted);font-size:15px}
+.card .btn{margin:4px 6px 0 0}
+.dup{display:grid;gap:8px;margin:8px 0}
+.dup > div{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface2)}
+.banner{margin:10px 14px 0;padding:12px 14px;border-radius:12px;background:var(--late-soft);color:var(--late);font-weight:600;display:flex;gap:10px;align-items:center;justify-content:space-between;width:calc(100% - 28px);text-align:left}
+
+/* Sheet */
+.sheet-root{position:fixed;inset:0;z-index:50}
+.backdrop{position:absolute;inset:0;background:rgba(8,16,12,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;margin:0 auto;max-width:760px;max-height:calc(100% - 20px - env(safe-area-inset-top,0px));overflow:auto;background:var(--surface);border-radius:18px 18px 0 0;padding:18px 16px calc(22px + env(safe-area-inset-bottom,0px));animation:up .2s ease-out}
+@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.sheet{animation:none}}
+.sheet h2{margin:0 44px 4px 0;font:600 26px/1.1 var(--f-cond);overflow-wrap:anywhere}
+.sheet .lead{margin:0 0 14px;color:var(--muted)}
+.sheet-close{position:absolute;top:10px;right:10px;width:44px;height:44px;border-radius:22px;font-size:28px;line-height:1;display:grid;place-items:center;color:var(--muted)}
+.acts{display:grid;gap:10px}
+.act{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:56px;padding:0 16px;border-radius:14px;border:1.5px solid var(--line);font-weight:600;font-size:17px;text-align:left}
+.act small{font-weight:500;color:var(--muted);font-size:15px}
+.act.go{background:var(--oxy);border-color:var(--oxy);color:var(--oxy-ink)}
+.act.go small{color:inherit;opacity:.85}
+.act.rv{border-color:var(--later);color:var(--later)}
+.field{display:block;margin:0 0 12px}
+.field > span{display:block;font-size:14px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;min-height:48px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface2);padding:8px 12px;font-size:17px}
+.field textarea{min-height:70px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.quick button{height:36px;padding:0 12px;border-radius:9px;border:1.5px solid var(--line);font:600 17px/1 var(--f-cond)}
+.hint{font-size:14px;color:var(--muted);margin:-4px 0 12px}
+.warnbox{border-radius:10px;padding:10px 12px;background:var(--later-soft);color:var(--later);font-size:15px;margin:0 0 12px}
+.errbox{border-radius:10px;padding:10px 12px;background:var(--late-soft);color:var(--late);font-size:15px;margin:0 0 12px;font-weight:600}
+.checkline{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px;font-size:15px}
+.checkline input{width:22px;height:22px;margin-top:1px;flex:none}
+.res{border-top:1px solid var(--line);margin-top:8px}
+.res-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.res-row .btn{min-height:42px;padding:0 14px}
+table.carico{width:100%;border-collapse:collapse;margin:6px 0 14px}
+table.carico td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:17px}
+table.carico td:last-child{text-align:right;font:700 24px/1 var(--f-cond)}
+table.carico tr.tot td{border-bottom:0;font-weight:700}
+.map-prev{overflow-x:auto;margin:8px 0 14px}
+.map-prev table{border-collapse:collapse;font-size:13px}
+.map-prev td,.map-prev th{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;text-align:left}
+
+.toast{position:fixed;left:12px;right:12px;bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.toast span{flex:1;font-size:15px}
+.toast button{font-weight:700;color:var(--oxy-soft);padding:8px 6px;white-space:nowrap}
+:root[data-theme="dark"] .toast button{color:var(--oxy)}
+.storage-warn{margin:10px 14px 0;padding:10px 12px;border-radius:10px;background:var(--late-soft);color:var(--late);font-size:14px;font-weight:600}
+.sr-date{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+.prose{padding:4px 16px 10px;font-size:15px;line-height:1.5;max-width:68ch}
+.prose h3{font:600 20px/1.2 var(--f-cond);margin:14px 0 4px}
+.prose p{margin:0 0 8px}
+
+#print-area{display:none}
+@media print{
+  body > *:not(#print-area){display:none !important}
+  #print-area{display:block !important}
+  body{background:#fff;color:#000}
+  :root{padding:0}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<nav class="nav" aria-label="Sezioni"><div class="nav-in" id="nav"></div></nav>
+<button class="fab" id="fab" data-act="aggiungi" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  Aggiungi al giro
+</button>
+<div class="sheet-root" id="sheet-root" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<input type="date" id="pick-day" class="sr-date" tabindex="-1" aria-hidden="true">
+<input type="file" id="file-import" accept=".csv,.txt,.xlsx,.xls,text/csv" hidden>
+<input type="file" id="file-backup" accept=".json,application/json" hidden>
+<div id="print-area"></div>
+
+<script>
+'use strict';
+const SEED = /*SEED*/[];
+const PWA = true;
+const KEY = 'giroOssigeno.v1';
+const GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+const GB = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+const MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+const MB = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+const ORDINE_CNT = ['26','31','31T','41','47'];
+const KNOWN_DISTINCT = {};
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+/* ---------- utilità ---------- */
+const $ = s => document.querySelector(s);
+function esc(s){return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function pad(n){return String(n).padStart(2,'0')}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function cap(s){return s ? s.charAt(0).toUpperCase()+s.slice(1) : s}
+function normTxt(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim()}
+function isoFromDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function todayISO(){return isoFromDate(new Date())}
+function toUTC(iso){const [y,m,d]=iso.split('-').map(Number);return Date.UTC(y,m-1,d)}
+function fromUTC(t){const d=new Date(t);return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())}
+function addDays(iso,n){return fromUTC(toUTC(iso)+n*864e5)}
+function diffDays(a,b){return Math.round((toUTC(a)-toUTC(b))/864e5)}
+function wd(iso){return new Date(toUTC(iso)).getUTCDay()}
+function dm(iso){const [y,m,d]=iso.split('-').map(Number);return {y,m,d}}
+function fmtLong(iso){const {m,d}=dm(iso);return cap(GIORNI[wd(iso)])+' '+d+' '+MESI[m-1]}
+function fmtShort(iso){if(!iso) return '—';const {m,d}=dm(iso);return GB[wd(iso)].toLowerCase()+' '+d+' '+MB[m-1]}
+function fmtNum(iso){if(!iso) return '';const {y,m,d}=dm(iso);return pad(d)+'/'+pad(m)+'/'+String(y).slice(2)}
+function validISO(s){return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(toUTC(s))}
+function parseDateAny(v){
+  const s=String(v ?? '').trim(); if(!s) return '';
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return fixDate(+m[1],+m[2],+m[3]);
+  m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+  if(m){let y=+m[3]; if(y<100) y+=2000; return fixDate(y,+m[2],+m[1]);}
+  if(/^\d{5}(\.\d+)?$/.test(s)){return fromUTC(Date.UTC(1899,11,30)+Math.floor(+s)*864e5)}
+  return '';
+}
+function fixDate(y,m,d){if(m<1||m>12||d<1||d>31) return '';const iso=y+'-'+pad(m)+'-'+pad(d);return fromUTC(toUTC(iso))===iso?iso:''}
+function normGiorno(s){
+  const t=normTxt(s).toLowerCase().slice(0,3);
+  const map={dom:0,lun:1,mar:2,mer:3,gio:4,ven:5,sab:6};
+  return t in map ? GIORNI[map[t]] : '';
+}
+function toFG(v){const n=parseInt(String(v ?? '').replace(/[^\d]/g,''),10);return n>0&&n<400?n:0}
+function cleanCnt(v){return String(v ?? '').toUpperCase().replace(/\s+/g,'').replace(/\*/g,'X')}
+function surname(p){return normTxt(p.nome).split(' ')[0]||''}
+function locKey(p){return normTxt(String(p.localita||'').replace(/\//g,' ')).split(' ')[0]||''}
+
+/* ---------- stato ---------- */
+let storageOK = true;
+let S = null;
+const ui = {tab:'giro', day:todayISO(), follow:true, q:'', filtro:'tutti', hf:'consegna', hq:'', hlim:200};
+
+function fromRow(r){
+  const p = {
+    id: uid(),
+    nome: String(r.nome ?? r.NOME ?? '').trim().toUpperCase(),
+    localita: String(r.localita ?? r.LOCALITA ?? '').trim().toUpperCase(),
+    cnt: cleanCnt(r.cnt ?? r.CNT),
+    fg: toFG(r.fg ?? r.FG),
+    giorno: normGiorno(r.giorno ?? r.GIORNO_FISSO),
+    ultima: parseDateAny(r.ultima ?? r.ULTIMA_VISITA),
+    prossima: parseDateAny(r.prossima ?? r.PROSSIMA_VISITA),
+    note: String(r.note ?? r.NOTE ?? '').trim(),
+    spostata: null
+  };
+  if(!p.prossima && p.ultima && p.fg) p.prossima = addDays(p.ultima,p.fg);
+  const rv = parseDateAny(r.rinvio ?? r.RINVIO);
+  if(rv) p.spostata = {data:rv, motivo:'rinvio'};
+  if(!p.giorno && p.prossima) p.giorno = GIORNI[wd(p.prossima)];
+  return p;
+}
+function isPossibleDup(a,b){
+  const na=normTxt(a.nome), nb=normTxt(b.nome);
+  if(na===nb) return true;
+  const ta=na.split(' '), tb=nb.split(' ');
+  if(!ta[0] || ta[0]!==tb[0]) return false;
+  if(['RSA','VILLA','CASA','CASE'].includes(ta[0])) return false;
+  const x=ta[1]||'', y=tb[1]||'';
+  if(x && y && !x.startsWith(y) && !y.startsWith(x)) return false;
+  return locKey(a)===locKey(b);
+}
+function pairKey(a,b){return [a.id,b.id].sort().join('|')}
+function initialDismissed(P){
+  const out=[];
+  for(let i=0;i<P.length;i++) for(let j=i+1;j<P.length;j++){
+    const a=P[i], b=P[j];
+    if(!isPossibleDup(a,b)) continue;
+    const n=normTxt(a.nome);
+    if(n!==normTxt(b.nome) || !KNOWN_DISTINCT[n]) continue;
+    const la=normTxt(a.localita), lb=normTxt(b.localita), known=KNOWN_DISTINCT[n];
+    if(la!==lb && known.includes(la) && known.includes(lb)) out.push(pairKey(a,b));
+  }
+  return out;
+}
+function seedState(){
+  const pazienti = SEED.map(fromRow);
+  const st={v:1, pazienti, storico:[], dismissed:[], mappe:{}, creato:todayISO(), patch:[]};
+  applicaCorrezioni(st);
+  st.dismissed=initialDismissed(st.pazienti);
+  return st;
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      if(s && Array.isArray(s.pazienti)){
+        s.storico = s.storico || []; s.dismissed = s.dismissed || []; s.mappe = s.mappe || {};
+        applicaCorrezioni(s);
+        return s;
+      }
+    }
+  }catch(e){ storageOK = false; }
+  return seedState();
+}
+function save(){
+  // tiene lo stato per l'annullamento solo sulle 400 operazioni più recenti
+  for(let i=400;i<S.storico.length;i++) if(S.storico[i].prima) delete S.storico[i].prima;
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
+  catch(e){ storageOK = false; }
+}
+function byId(id){return S.pazienti.find(p=>p.id===id)}
+function eff(p){return (p.spostata && p.spostata.data) || p.prossima || ''}
+
+/* ---------- correzioni ai dati ---------- */
+const PATCHES=[];
+function applicaCorrezioni(st){
+  st.patch=st.patch||[];
+  const match=(p,[n,l,d])=>normTxt(p.nome)===normTxt(n)&&normTxt(p.localita)===normTxt(l)&&p.prossima===d&&!p.spostata;
+  let fatte=0;
+  for(const pt of PATCHES){
+    if(st.patch.includes(pt.id)) continue;
+    for(const op of pt.ops){
+      if(op.del){const i=st.pazienti.findIndex(p=>match(p,op.del)); if(i>=0){st.pazienti.splice(i,1);fatte++}}
+      if(op.set){const p=st.pazienti.find(p=>match(p,op.set)); if(p){Object.assign(p,op.v);fatte++}}
+      if(op.fatto){const p=st.pazienti.find(p=>match(p,op.fatto)); if(p&&p.fg){
+        let last=p.prossima; while(addDays(last,p.fg)<=pt.rif) last=addDays(last,p.fg);
+        const prima=snap(p), next=addDays(last,p.fg);
+        p.ultima=last; p.prossima=next;
+        st.storico.unshift({id:uid(),ts:Date.now(),tipo:'consegna',pid:p.id,nome:p.nome,localita:p.localita,cnt:p.cnt,note:p.note,fg:p.fg,data:last,prossima:next,prima,recupero:true});
+        fatte++}}
+    }
+    st.patch.push(pt.id);
+  }
+  return fatte;
+}
+
+/* ---------- regole del ciclo ---------- */
+function calcNext(p,d){
+  const fg=p.fg; if(!fg) return '';
+  const a=p.prossima;
+  if(!a) return addDays(d,fg);
+  if(d<a){
+    const fisso=GIORNI.indexOf(p.giorno);
+    if(fisso<0 || wd(d)===fisso) return addDays(d,fg);   // anticipo: riparte dalla consegna
+    return addDays(a,fg);                                  // eccezione in altro giorno: ciclo invariato
+  }
+  let n=addDays(a,fg);                                     // in ritardo o nel giorno giusto: cadenza originale
+  while(n<=d) n=addDays(n,fg);
+  return n;
+}
+function rinvioDate(p,D,n){
+  const e=eff(p);
+  const base = (e && e>D) ? e : D;
+  let r=addDays(base,n);
+  if(wd(r)===0) r=addDays(r,1);
+  return r;
+}
+function dataOperazione(D){const T=todayISO();return D<T?D:T}
+function snap(p){return {ultima:p.ultima, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null}}
+function logOp(h){S.storico.unshift(Object.assign({id:uid(), ts:Date.now()},h))}
+
+function consegna(id){
+  const p=byId(id); if(!p) return;
+  const d=dataOperazione(ui.day);
+  const prima=snap(p);
+  const next=calcNext(p,d);
+  p.ultima=d; p.prossima=next; p.spostata=null;
+  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, note:p.note, fg:p.fg, data:d, prossima:next, prima});
+  save(); closeSheet(); render();
+  const hid=S.storico[0].id;
+  toast(next ? `${p.nome}: consegnato. Prossima ${fmtShort(next)}.` : `${p.nome}: consegnato. Manca la F.G.: imposta la prossima visita nella scheda.`, ()=>annulla(hid));
+}
+function rimanda(id,n){
+  const p=byId(id); if(!p) return;
+  const nuova=rinvioDate(p,ui.day,n);
+  const prima=snap(p);
+  p.spostata={data:nuova, motivo:'rinvio'};
+  logOp({tipo:'rinvio', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, data:dataOperazione(ui.day), a:nuova, prima});
+  save(); closeSheet(); render();
+  const hid=S.storico[0].id;
+  toast(`${p.nome}: rimandato a ${fmtShort(nuova)}.`, ()=>annulla(hid));
+}
+function aggiungiAlGiro(id){
+  const p=byId(id); if(!p) return;
+  const D=ui.day<todayISO()?todayISO():ui.day;
+  if(eff(p)===D){toast(`${p.nome} è già nel giro di ${fmtShort(D)}.`);return}
+  const prima=snap(p);
+  p.spostata={data:D, motivo:'aggiunto'};
+  logOp({tipo:'aggiunto', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, data:D, a:D, prima});
+  save(); closeSheet(); if(ui.day!==D) ui.day=D; render();
+  const hid=S.storico[0].id;
+  toast(`${p.nome} aggiunto al giro di ${fmtShort(D)}.`, ()=>annulla(hid));
+}
+function togliRinvio(id){
+  const p=byId(id); if(!p||!p.spostata) return;
+  const prima=snap(p);
+  p.spostata=null;
+  logOp({tipo:'ripristino', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, data:todayISO(), a:p.prossima, prima});
+  save(); closeSheet(); render();
+  toast(`${p.nome}: torna al ciclo, prossima ${fmtShort(p.prossima)}.`);
+}
+function canUndo(h){
+  if(!h.prima) return false;
+  const p=byId(h.pid); if(!p) return false;
+  return S.storico.find(x=>x.pid===h.pid)===h;
+}
+function annulla(hid){
+  const h=S.storico.find(x=>x.id===hid); if(!h) return;
+  if(!canUndo(h)){toast('Si può annullare solo l’ultima operazione di ogni paziente.');return}
+  const p=byId(h.pid);
+  p.ultima=h.prima.ultima; p.prossima=h.prima.prossima; p.spostata=h.prima.spostata;
+  S.storico=S.storico.filter(x=>x!==h);
+  save(); closeSheet(); render();
+  toast(`Annullato: ${p.nome}.`);
+}
+
+/* ---------- calcolo del giro ---------- */
+function giroDi(D){
+  const T=todayISO();
+  const arretrati=[], delGiorno=[], senzaData=[];
+  for(const p of S.pazienti){
+    const e=eff(p);
+    if(!e){ if(D===T) senzaData.push(p); continue; }
+    if(e===D) delGiorno.push(p);
+    else if(e<T && D>=T) arretrati.push(p);
+  }
+  arretrati.sort((a,b)=>eff(a).localeCompare(eff(b))||a.nome.localeCompare(b.nome));
+  const fatti=S.storico.filter(h=>h.tipo==='consegna' && h.data===D);
+  return {arretrati, delGiorno, senzaData, fatti};
+}
+function contaGiorno(d, idx){
+  const T=todayISO();
+  let n=idx.get(d)||0, late=0;
+  if(d===T){ for(const [k,v] of idx) if(k<T) late+=v; late+=idx.get('')||0; }
+  return {n:n+late, late};
+}
+function indiceDate(){const m=new Map();for(const p of S.pazienti){const e=eff(p);m.set(e,(m.get(e)||0)+1)}return m}
+function listaRimandati(){return S.pazienti.filter(p=>p.spostata&&p.spostata.motivo==='rinvio').sort((a,b)=>a.spostata.data.localeCompare(b.spostata.data)||a.nome.localeCompare(b.nome))}
+
+function parseCnt(cnt,note){
+  const r={bombole:{}, gassosi:{}, variabile:false, reso:false, vuoto:false, gasNote:false};
+  const n=String(note||'').toUpperCase();
+  if(/\bRESO\b/.test(n)) r.reso=true;
+  const c=cleanCnt(cnt);
+  if(!c) r.vuoto=true;
+  else if(c.startsWith('VAR')) r.variabile=true;
+  else for(const part of c.split('+')){
+    const m=part.match(/^(?:(\d+)X)?(\d+T?)$/); if(!m) continue;
+    const q=+(m[1]||1), t=m[2];
+    const bag=(t==='6000'||t==='3000')?r.gassosi:r.bombole;
+    bag[t]=(bag[t]||0)+q;
+  }
+  let foundGas=false;
+  for(const m of n.matchAll(/(\d+)\s*X\s*(6000|3000)/g)){r.gassosi[m[2]]=(r.gassosi[m[2]]||0)+(+m[1]);foundGas=true}
+  if(/GASSOS/.test(n) && !foundGas) r.gasNote=true;
+  return r;
+}
+function riepilogo(items){
+  const tot={}, gas={}, resi=[], variabili=[], vuoti=[], gasNote=[];
+  let totale=0;
+  for(const it of items){
+    const r=parseCnt(it.cnt,it.note);
+    if(r.reso){resi.push(it);continue}
+    if(r.variabile) variabili.push(it);
+    if(r.vuoto) vuoti.push(it);
+    if(r.gasNote) gasNote.push(it);
+    for(const [t,q] of Object.entries(r.bombole)){tot[t]=(tot[t]||0)+q;totale+=q}
+    for(const [t,q] of Object.entries(r.gassosi)) gas[t]=(gas[t]||0)+q;
+  }
+  const tipi=Object.keys(tot).sort((a,b)=>{const ia=ORDINE_CNT.indexOf(a),ib=ORDINE_CNT.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b)});
+  return {tot, tipi, totale, gas, resi, variabili, vuoti, gasNote};
+}
+
+/* ---------- verifiche ---------- */
+function verifiche(){
+  const out=[], P=S.pazienti, dis=new Set(S.dismissed);
+  for(let i=0;i<P.length;i++) for(let j=i+1;j<P.length;j++){
+    const a=P[i], b=P[j];
+    if(isPossibleDup(a,b)){const k=pairKey(a,b); if(!dis.has(k)) out.push({tipo:'doppio',a,b,k})}
+  }
+  for(const p of P){
+    if(!eff(p)) out.push({tipo:'data',p});
+    if(!p.fg) out.push({tipo:'fg',p});
+    if(!p.cnt) out.push({tipo:'cnt',p});
+    if(!p.giorno) out.push({tipo:'giorno',p});
+    else if(p.prossima && !p.spostata && GIORNI[wd(p.prossima)]!==p.giorno && !dis.has('gg|'+p.id+'|'+p.prossima+'|'+p.giorno)) out.push({tipo:'gdiv',p});
+  }
+  return out;
+}
+
+/* ---------- rendering ---------- */
+function cntBadge(cnt,sm){
+  const c=cleanCnt(cnt);
+  const txt=c?c.replace(/X/g,'×').replace(/\+/g,'+'):'?';
+  const long=txt.length>4;
+  return `<span class="cnt${sm?' sm':''}${long?' long':''}${c?'':' warn'}" aria-label="CNT ${esc(c||'mancante')}">${esc(txt)}</span>`;
+}
+function navHTML(){
+  const nv=verifiche().length;
+  const it=[
+    ['giro','Giro','<path d="M3 17h2m14 0h2M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM9 17h6M3 17V7h11v10M14 10h4l3 4v3"/>'],
+    ['pazienti','Pazienti','<path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/>'],
+    ['storico','Storico','<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2"/>'],
+    ['altro','Altro','<path d="M4 6h16M4 12h16M4 18h16"/>']
+  ];
+  return it.map(([k,l,svg])=>`<button data-act="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg><span>${l}${k==='pazienti'&&nv?`<span class="badge">${nv}</span>`:''}</span></button>`).join('');
+}
+function render(){
+  $('#nav').innerHTML=navHTML();
+  $('#fab').hidden = ui.tab!=='giro';
+  const app=$('#app');
+  if(ui.tab==='giro') app.innerHTML=renderGiro();
+  else if(ui.tab==='pazienti') app.innerHTML=renderPazienti();
+  else if(ui.tab==='storico') app.innerHTML=renderStorico();
+  else app.innerHTML=renderAltro();
+}
+function storageWarn(){return storageOK?'':'<div class="storage-warn">Il telefono non sta salvando i dati di questa pagina. Scarica un backup da Altro prima di chiudere.</div>'}
+
+function rowHTML(p,kind){
+  const D=ui.day, e=eff(p), T=todayISO();
+  const meta=[];
+  if(kind==='late'){
+    const ref = D>=T?T:D;
+    const g=diffDays(ref,e);
+    meta.push(esc(p.localita));
+    meta.push(`<span class="lt">Arretrato dal ${fmtShort(e)}${g>0?`, ${g} ${g===1?'giorno':'giorni'}`:''}</span>`);
+  } else if(kind==='nodate'){
+    meta.push('<span class="lt">Senza data di visita: apri la scheda</span>');
+    meta.push(esc(p.localita));
+  } else if(kind==='pastpend'){
+    meta.push('<span class="lt">Non consegnato</span>');
+  }
+  if(p.spostata && p.spostata.motivo==='rinvio') meta.push(`<span class="rv">Rimandato (ciclo ${fmtShort(p.prossima)})</span>`);
+  if(p.spostata && p.spostata.motivo==='aggiunto') meta.push('<span class="rv">Aggiunto al giro</span>');
+  meta.push('F.G. '+(p.fg||'?'));
+  return `<div class="row${kind==='late'||kind==='nodate'||kind==='pastpend'?' late':''}">
+    <button class="check" data-act="consegna" data-id="${p.id}" aria-label="Segna consegnato ${esc(p.nome)}">${ICON_CHECK}</button>
+    <button class="row-main" data-act="azioni" data-id="${p.id}">
+      <span class="nome">${esc(p.nome)}</span>
+      <span class="meta">${meta.join('. ')}</span>
+      ${p.note?`<span class="note">${esc(p.note)}</span>`:''}
+    </button>
+    ${cntBadge(p.cnt)}
+  </div>`;
+}
+function doneRowHTML(h){
+  const undo=canUndo(h);
+  return `<div class="row done">
+    <span class="check" aria-hidden="true">${ICON_CHECK}</span>
+    <div class="row-main">
+      <span class="nome">${esc(h.nome)}</span>
+      <span class="meta">${esc(h.localita)}. Prossima ${fmtShort(h.prossima)}</span>
+      ${undo?`<button class="undo-btn" data-act="annulla" data-hid="${h.id}">Annulla consegna</button>`:''}
+    </div>
+    ${cntBadge(h.cnt)}
+  </div>`;
+}
+function gruppiLocalita(list){
+  const m=new Map();
+  for(const p of list){const k=normTxt(p.localita)||'—';if(!m.has(k)) m.set(k,{nome:p.localita||'Senza località',items:[]});m.get(k).items.push(p)}
+  return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([,g])=>{g.items.sort((a,b)=>a.nome.localeCompare(b.nome));return g});
+}
+function renderGiro(){
+  const D=ui.day, T=todayISO();
+  const g=giroDi(D);
+  const idx=indiceDate();
+  const pend=[...g.senzaData,...g.arretrati,...g.delGiorno];
+  const rim=listaRimandati();
+  const car=riepilogo([...pend,...g.fatti]);
+  // settimana
+  const mon=addDays(D,-((wd(D)+6)%7));
+  const days=[];
+  for(let i=0;i<6;i++){const d=addDays(mon,i);const c=contaGiorno(d,idx);if(i===5 && !c.n && d!==D) continue;days.push({d,...c})}
+  const rel = D===T?'Oggi':D===addDays(T,1)?'Domani':D===addDays(T,-1)?'Ieri':(D<T?'Giorno passato':'');
+  let h=`<header class="top">
+    <div class="top-row">
+      <button class="icon-btn" data-act="giorno" data-n="-1" aria-label="Giorno precedente">‹</button>
+      <div class="top-date">
+        <div class="when">${rel}</div>
+        <button class="pick" data-act="scegli-giorno" aria-label="Scegli una data"><h1>${fmtLong(D)}</h1></button>
+        ${D!==T?'<div><button class="back-today" data-act="oggi">Torna a oggi</button></div>':''}
+      </div>
+      <button class="icon-btn" data-act="giorno" data-n="1" aria-label="Giorno successivo">›</button>
+    </div>
+    <div class="week">${days.map(x=>`<button class="wd${x.d===D?' sel':''}${x.d===T?' today':''}${x.late?' has-late':''}" data-act="vai" data-d="${x.d}" aria-label="${fmtLong(x.d)}, ${x.n} pazienti"><span class="d1">${GB[wd(x.d)]}</span><span class="d2">${dm(x.d).d}</span><span class="n">${x.n||'–'}</span></button>`).join('')}</div>
+  </header>`;
+  h+=`<div class="stats">
+    <div class="stat"><b>${pend.length}</b><span>da fare</span></div>
+    <div class="stat"><b>${g.fatti.length}</b><span>consegnati</span></div>
+    <button class="stat stat-btn${rim.length?' warn':''}" data-act="rimandati"><b>${rim.length}</b><span>rimandati</span></button>
+    <button class="stat stat-btn" data-act="carico"><b>${car.totale}</b><span>bombole</span></button>
+  </div>`;
+  h+=storageWarn();
+  if(g.senzaData.length){
+    h+=`<div class="sec late"><h2>Senza data</h2><span class="c">${g.senzaData.length}</span></div><div class="sec-note">Questi pazienti non hanno una prossima visita: aprili e impostala, oppure consegna.</div><div class="list">${g.senzaData.map(p=>rowHTML(p,'nodate')).join('')}</div>`;
+  }
+  if(g.arretrati.length){
+    h+=`<div class="sec late"><h2>Arretrati</h2><span class="c">${g.arretrati.length}</span></div><div class="sec-note"><button class="btn" data-act="gia-fatti">Segna quelli già fatti</button></div><div class="list">${g.arretrati.map(p=>rowHTML(p,'late')).join('')}</div>`;
+  }
+  const past = D<T;
+  for(const gr of gruppiLocalita(g.delGiorno)){
+    h+=`<div class="sec"><h2>${esc(gr.nome)}</h2><span class="c">${gr.items.length}</span></div><div class="list">${gr.items.map(p=>rowHTML(p,past?'pastpend':'')).join('')}</div>`;
+  }
+  if(!S.pazienti.length){
+    h+=`<div class="card"><h3>Carica i tuoi pazienti</h3><p>L’archivio su questo telefono è vuoto. Se hai un backup scaricato dall’app, ripristinalo. Altrimenti importa il file Pazienti_Database.csv.</p><button class="btn primary" data-act="ripristina">Ripristina backup</button><button class="btn" data-act="importa">Importa CSV o Excel</button></div>`;
+  } else if(!pend.length && !g.fatti.length){
+    h+=`<div class="empty"><strong>Nessuno in programma</strong>${D<T?'In questo giorno non risultano consegne.':'Per questo giorno non ci sono pazienti in ciclo. Puoi aggiungerne uno con il pulsante in basso.'}</div>`;
+  } else if(!pend.length){
+    h+=`<div class="empty"><strong>Giro completato</strong>Tutti i pazienti di questo giorno sono stati consegnati.</div>`;
+  }
+  if(g.fatti.length){
+    h+=`<div class="sec"><h2>Consegnati</h2><span class="c">${g.fatti.length}</span></div><div class="list">${g.fatti.map(doneRowHTML).join('')}</div>`;
+  }
+  h+=`<div class="foot-actions"><button class="btn" data-act="foglio">Foglio del giorno</button><button class="btn" data-act="carico">Bombole da caricare</button></div>`;
+  return h;
+}
+
+function renderPazienti(){
+  const ver=verifiche();
+  const chips=[['tutti','Tutti'],['lunedì','Lun'],['martedì','Mar'],['mercoledì','Mer'],['giovedì','Gio'],['venerdì','Ven']];
+  if(S.pazienti.some(p=>p.giorno==='sabato')) chips.push(['sabato','Sab']);
+  let h=`<header class="page-h"><h1>Pazienti</h1><span class="sub">${S.pazienti.length} in archivio</span><button class="btn primary" data-act="nuovo">Nuovo</button></header>${storageWarn()}`;
+  h+=`<div class="search"><input id="paz-q" type="search" placeholder="Cerca per nome, località o CNT" value="${esc(ui.q)}" autocomplete="off"></div>`;
+  h+=`<div class="chips">${chips.map(([k,l])=>`<button class="chip" data-act="filtro" data-f="${k}" aria-pressed="${ui.filtro===k}">${l}</button>`).join('')}${ver.length?`<button class="chip warn" data-act="filtro" data-f="verifica" aria-pressed="${ui.filtro==='verifica'}">Da verificare ${ver.length}</button>`:''}</div>`;
+  h+=`<div id="paz-list">${pazListHTML()}</div>`;
+  return h;
+}
+function pazListHTML(){
+  if(ui.filtro==='verifica') return verificaHTML();
+  if(!S.pazienti.length) return `<div class="empty"><strong>Archivio vuoto</strong>Importa i pazienti da un file CSV o Excel dalla sezione Altro, oppure creane uno con Nuovo.</div>`;
+  const q=normTxt(ui.q);
+  let L=S.pazienti.filter(p=>(ui.filtro==='tutti'||p.giorno===ui.filtro) && (!q || normTxt(p.nome+' '+p.localita+' '+p.cnt+' '+p.note).includes(q)));
+  L.sort((a,b)=>a.nome.localeCompare(b.nome)||a.localita.localeCompare(b.localita));
+  if(!L.length) return `<div class="empty"><strong>Nessun risultato</strong>Prova a cercare solo il cognome o la località.</div>`;
+  return `<div class="list">${L.map(p=>{
+    const e=eff(p), T=todayISO();
+    let when = e?`Prossima ${fmtShort(e)}`:'<span class="lt">Senza data</span>';
+    if(e && e<T) when=`<span class="lt">Arretrato dal ${fmtShort(e)}</span>`;
+    if(p.spostata && p.spostata.motivo==='rinvio') when+=` <span class="rv">(rimandato)</span>`;
+    return `<button class="prow" data-act="scheda" data-id="${p.id}"><span class="row-main"><span class="nome">${esc(p.nome)}</span><span class="meta">${esc(p.localita)}</span><span class="meta">F.G. ${p.fg||'?'}, ${esc(p.giorno||'giorno non impostato')}. ${when}</span></span>${cntBadge(p.cnt,true)}</button>`;
+  }).join('')}</div>`;
+}
+function miniP(p){return `<strong>${esc(p.nome)}</strong><div class="meta">${esc(p.localita)}, CNT ${esc(p.cnt||'?')}, F.G. ${p.fg||'?'}, ${esc(p.giorno||'—')}</div><div class="meta">Ultima ${fmtShort(p.ultima)}, prossima ${fmtShort(eff(p))}</div>${p.note?`<div class="meta">${esc(p.note)}</div>`:''}`}
+function verificaHTML(){
+  const V=verifiche();
+  if(!V.length) return `<div class="empty"><strong>Tutto in ordine</strong>Non ci sono doppioni o dati mancanti da controllare.</div>`;
+  const txt={data:'Non ha una data di prossima visita.',fg:'Manca la frequenza (F.G.).',cnt:'Manca il CNT: non sai che bombola portare.',giorno:'Manca il giorno fisso.'};
+  return V.map(v=>{
+    if(v.tipo==='doppio') return `<div class="card"><h3>Possibile doppione</h3><p>Due schede molto simili. Se sono la stessa persona elimina quella vecchia, così non compare due volte nel giro.</p>
+      <div class="dup"><div>${miniP(v.a)}<button class="btn danger" data-act="elimina" data-id="${v.a.id}">Elimina questa</button></div><div>${miniP(v.b)}<button class="btn danger" data-act="elimina" data-id="${v.b.id}">Elimina questa</button></div></div>
+      <button class="btn" data-act="diversi" data-k="${v.k}">Sono due persone diverse</button></div>`;
+    if(v.tipo==='gdiv') return `<div class="card"><h3>${esc(v.p.nome)}</h3><p>Giorno fisso ${esc(v.p.giorno)}, ma la prossima visita cade ${fmtShort(v.p.prossima)}. ${esc(v.p.localita)}${v.p.note?`. Nota: ${esc(v.p.note)}`:''}</p><button class="btn" data-act="scheda" data-id="${v.p.id}">Apri scheda</button><button class="btn" data-act="gdiv-ok" data-id="${v.p.id}">Va bene così</button></div>`;
+    return `<div class="card"><h3>${esc(v.p.nome)}</h3><p>${txt[v.tipo]} ${esc(v.p.localita)}</p><button class="btn" data-act="scheda" data-id="${v.p.id}">Apri scheda</button></div>`;
+  }).join('');
+}
+
+function renderStorico(){
+  let h=`<header class="page-h"><h1>Storico</h1><span class="sub">${S.storico.filter(x=>x.tipo==='consegna').length} consegne</span></header>`;
+  h+=`<div class="search"><input id="st-q" type="search" placeholder="Cerca un paziente" value="${esc(ui.hq)}" autocomplete="off"></div>`;
+  h+=`<div class="chips">${[['consegna','Consegne'],['rinvio','Rinvii e aggiunte'],['tutto','Tutto']].map(([k,l])=>`<button class="chip" data-act="hfiltro" data-f="${k}" aria-pressed="${ui.hf===k}">${l}</button>`).join('')}</div>`;
+  h+=`<div id="st-list">${storicoListHTML()}</div>`;
+  return h;
+}
+function storicoListHTML(){
+  const q=normTxt(ui.hq);
+  const L=[...S.storico].sort((a,b)=>b.data.localeCompare(a.data)||b.ts-a.ts).filter(x=>(ui.hf==='tutto'||(ui.hf==='consegna'?x.tipo==='consegna':x.tipo!=='consegna')) && (!q||normTxt(x.nome+' '+x.localita).includes(q)));
+  if(!L.length) return `<div class="empty"><strong>Ancora niente qui</strong>Ogni consegna segnata nel giro finisce in questo registro, dalla più recente.</div>`;
+  let h='', last='';
+  for(const x of L.slice(0,ui.hlim)){
+    if(x.data!==last){h+=`<div class="hday">${fmtLong(x.data)}</div>`;last=x.data}
+    const tag = x.tipo==='consegna'?'<span class="tag ok">Consegnato</span>':x.tipo==='rinvio'?'<span class="tag rv">Rimandato</span>':x.tipo==='aggiunto'?'<span class="tag ag">Aggiunto</span>':'<span class="tag ag">Rinvio tolto</span>';
+    const det = x.tipo==='consegna'?`Prossima ${fmtShort(x.prossima)}`:`Al ${fmtShort(x.a)}`;
+    h+=`<div class="hrow"><div class="row-main"><span class="nome">${esc(x.nome)}</span><span class="meta">${tag}${esc(x.localita)}. ${det}</span>${canUndo(x)?`<button class="undo-btn" data-act="annulla" data-hid="${x.id}">Annulla</button>`:''}</div>${cntBadge(x.cnt,true)}</div>`;
+  }
+  if(L.length>ui.hlim) h+=`<button class="more" data-act="piu-storico">Mostra altri</button>`;
+  return h;
+}
+
+let deferredPrompt=null;
+function renderAltro(){
+  const standalone = window.matchMedia && matchMedia('(display-mode: standalone)').matches;
+  let inst='';
+  if(PWA){
+    if(standalone) inst=`<div class="card"><h3>App installata</h3><p>Stai usando l’app dalla schermata Home.</p></div>`;
+    else inst=`<div class="card"><h3>Installa sul telefono</h3><p>${deferredPrompt?'Mettila sulla schermata Home come una normale app, funziona anche senza campo.':'Se il pulsante non si attiva: menu ⋮ di Chrome, poi “Installa app” o “Aggiungi a schermata Home”.'}</p><button class="btn primary" data-act="installa" ${deferredPrompt?'':'disabled'}>Installa app</button></div>`;
+  }
+  return `<header class="page-h"><h1>Altro</h1></header>${storageWarn()}
+  ${inst}
+  <div class="card"><h3>Foglio del giro</h3><p>Il foglio di ${fmtShort(ui.day)} in una pagina, con il quadratino V, righe vuote in fondo e il riepilogo bombole.</p><button class="btn" data-act="foglio">Apri foglio</button></div>
+  <div class="card"><h3>Backup</h3><p>I dati restano su questo telefono. Scarica un backup ogni tanto e tienilo al sicuro: serve anche per spostare tutto su un altro telefono.</p>
+    <button class="btn primary" data-act="backup">Scarica backup</button><button class="btn" data-act="ripristina">Ripristina da backup</button><button class="btn" data-act="export-csv">Esporta pazienti in CSV</button></div>
+  <div class="card"><h3>Importa pazienti</h3><p>Da file CSV o Excel. Le colonne vengono riconosciute da sole e puoi correggerle prima di importare.</p><button class="btn" data-act="importa">Scegli file</button></div>
+  <div class="card"><h3>Svuota archivio</h3><p>Cancella tutti i pazienti da questo telefono.</p><button class="btn danger" data-act="svuota">Svuota archivio</button></div>
+  <div class="card"><h3>Come calcola le date</h3>
+    <p>Prossima visita = ultima + F.G. Una consegna fatta in un altro giorno della settimana non sposta il ciclo. Se consegni in anticipo nel giorno fisso, il ciclo riparte da quel giorno. Chi è in ritardo resta in cima al giro, in rosso, finché non viene consegnato o rimandato.</p>
+    <p>Rimanda a domani sposta solo questa visita di un giorno, alla prossima settimana di sette: il ciclo resta quello di prima. Per cambiare il giorno fisso per sempre, modificalo nella scheda del paziente.</p></div>`;
+}
+
+/* ---------- sheet e toast ---------- */
+let sheetOnClose=null;
+function openSheet(html,onMount){
+  const r=$('#sheet-root');
+  r.innerHTML=`<div class="backdrop" data-act="chiudi"></div><div class="sheet" role="dialog" aria-modal="true"><button class="sheet-close" data-act="chiudi" aria-label="Chiudi">×</button>${html}</div>`;
+  r.hidden=false; document.body.classList.add('no-scroll');
+  $('#toast').hidden=true; clearTimeout(toastT);
+  if(onMount) onMount(r);
+}
+function closeSheet(){const r=$('#sheet-root');r.hidden=true;r.innerHTML='';document.body.classList.remove('no-scroll')}
+let toastT=null, toastUndo=null;
+function toast(msg,undo){
+  const t=$('#toast');
+  t.innerHTML=`<span>${esc(msg)}</span>${undo?'<button data-act="toast-undo">Annulla</button>':''}`;
+  t.hidden=false; toastUndo=undo||null; clearTimeout(toastT);
+  toastT=setTimeout(()=>{t.hidden=true;toastUndo=null},undo?8000:4000);
+}
+
+function sheetAzioni(id){
+  const p=byId(id); if(!p) return;
+  const D=ui.day, d1=rinvioDate(p,D,1), d7=rinvioDate(p,D,7), dop=dataOperazione(D);
+  const next=calcNext(p,dop);
+  openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${esc(p.localita)}. CNT ${esc(p.cnt||'?')}, F.G. ${p.fg||'?'}${p.note?`. ${esc(p.note)}`:''}</p>
+  <div class="acts">
+    <button class="act go" data-act="consegna" data-id="${p.id}">Consegnato <small>${next?`prossima ${fmtShort(next)}`:''}</small></button>
+    <button class="act rv" data-act="rimanda" data-n="1" data-id="${p.id}">Rimanda a domani <small>${fmtShort(d1)}</small></button>
+    <button class="act rv" data-act="rimanda" data-n="7" data-id="${p.id}">Rimanda alla prossima settimana <small>${fmtShort(d7)}</small></button>
+    ${p.spostata?`<button class="act" data-act="togli-rinvio" data-id="${p.id}">Togli rinvio <small>ciclo ${fmtShort(p.prossima)}</small></button>`:''}
+    <button class="act" data-act="scheda" data-id="${p.id}">Apri scheda</button>
+  </div>`);
+}
+function sheetRimandati(){
+  const L=listaRimandati();
+  openSheet(`<h2>Rimandati</h2><p class="lead">${L.length?'Tocca un paziente per andare al giorno in cui va fatto.':'Nessun paziente rimandato.'}</p>
+  <div class="res">${L.map(p=>`<div class="res-row"><div><div class="nome">${esc(p.nome)}</div><div class="meta">${esc(p.localita)}. <span class="rv">Da fare ${fmtShort(p.spostata.data)}</span></div></div><button class="btn" data-act="vai" data-d="${p.spostata.data}">Vai</button></div>`).join('')}</div>`);
+}
+function sheetCarico(){
+  const g=giroDi(ui.day);
+  const all=[...g.senzaData,...g.arretrati,...g.delGiorno,...g.fatti];
+  const r=riepilogo(all);
+  const rest=riepilogo([...g.senzaData,...g.arretrati,...g.delGiorno]);
+  const names=L=>L.map(x=>esc(x.nome)).join(', ');
+  openSheet(`<h2>Bombole da caricare</h2><p class="lead">${fmtLong(ui.day)}, ${all.length} pazienti${g.arretrati.length?' compresi gli arretrati':''}.</p>
+  ${r.tipi.length?`<table class="carico">${r.tipi.map(t=>`<tr><td>CNT ${esc(t)}</td><td>${r.tot[t]}</td></tr>`).join('')}<tr class="tot"><td>Totale bombole</td><td>${r.totale}</td></tr></table>`:'<p>Nessuna bombola in questo giro.</p>'}
+  ${g.fatti.length?`<p class="hint">Ancora da consegnare: ${rest.totale}.</p>`:''}
+  ${Object.keys(r.gas).length?`<div class="warnbox">Gassosi, a parte: ${Object.entries(r.gas).map(([t,q])=>`${q} da ${t}`).join(', ')}.</div>`:''}
+  ${r.gasNote.length?`<div class="warnbox">Gassosi da verificare: ${names(r.gasNote)}.</div>`:''}
+  ${r.variabili.length?`<div class="warnbox">Quantità variabile, da concordare: ${names(r.variabili)}.</div>`:''}
+  ${r.resi.length?`<div class="warnbox">Resi da ritirare, non contati: ${names(r.resi)}.</div>`:''}
+  ${r.vuoti.length?`<div class="errbox">CNT mancante: ${names(r.vuoti)}.</div>`:''}`);
+}
+
+function sheetAggiungi(){
+  const D=ui.day<todayISO()?todayISO():ui.day;
+  openSheet(`<h2>Aggiungi al giro</h2><p class="lead">${fmtLong(D)}. Cerca prima in archivio, così non crei schede doppie.</p>
+  <div class="field"><input id="add-q" type="search" placeholder="Nome, località o CNT" autocomplete="off"></div>
+  <div id="add-res" class="res"></div>
+  <div style="margin-top:14px"><button class="btn block" data-act="nuovo-giro">Crea un paziente nuovo</button></div>`, r=>{setTimeout(()=>{const i=$('#add-q');i&&i.focus()},60)});
+}
+function addResHTML(q){
+  const n=normTxt(q);
+  if(!n) return '';
+  const D=ui.day<todayISO()?todayISO():ui.day;
+  const L=S.pazienti.filter(p=>normTxt(p.nome+' '+p.localita+' '+p.cnt).includes(n)).sort((a,b)=>a.nome.localeCompare(b.nome)).slice(0,40);
+  if(!L.length) return `<p class="hint" style="margin-top:10px">Nessun paziente trovato. Se è nuovo, crealo qui sotto.</p>`;
+  return L.map(p=>{
+    const inG=eff(p)===D;
+    return `<div class="res-row"><div><div class="nome">${esc(p.nome)}</div><div class="meta">${esc(p.localita)}, CNT ${esc(p.cnt||'?')}. Prossima ${fmtShort(eff(p))}</div></div>${inG?'<span class="meta">Già nel giro</span>':`<button class="btn primary" data-act="add-giro" data-id="${p.id}">Aggiungi</button>`}</div>`;
+  }).join('');
+}
+
+function sheetScheda(id,opts={}){
+  const isNew=!id; const p=isNew?null:byId(id);
+  if(!isNew && !p) return;
+  const D=ui.day<todayISO()?todayISO():ui.day;
+  const v=p||{nome:opts.nome||'',localita:'',cnt:'',fg:0,giorno:opts.giorno||'',ultima:'',prossima:opts.prossima||'',note:''};
+  const hist=p?S.storico.filter(x=>x.pid===p.id).slice(0,6):[];
+  openSheet(`<h2>${isNew?(opts.giro?'Nuovo paziente nel giro':'Nuovo paziente'):esc(p.nome)}</h2>
+  ${isNew&&opts.giro?`<p class="lead">Verrà messo nel giro di ${fmtShort(D)}.</p>`:''}
+  <div id="dup-warn"></div>
+  <label class="field"><span>Nome</span><input id="f-nome" value="${esc(v.nome)}" autocomplete="off" autocapitalize="characters"></label>
+  <label class="field"><span>Località</span><input id="f-loc" value="${esc(v.localita)}" autocomplete="off" autocapitalize="characters"></label>
+  <label class="field"><span>CNT, bombole da portare</span><input id="f-cnt" value="${esc(v.cnt)}" autocomplete="off" autocapitalize="characters" placeholder="es. 31, 2X31, 2X31+1X47">
+    <span class="quick">${ORDINE_CNT.map(c=>`<button type="button" data-act="set-cnt" data-v="${c}">${c}</button>`).join('')}</span></label>
+  <div class="two">
+    <label class="field"><span>F.G., ogni quanti giorni</span><select id="f-fg">${[['','Scegli'],...[7,14,21,28].map(n=>[n,n+' giorni'])].map(([k,l])=>`<option value="${k}" ${String(v.fg||'')===String(k)?'selected':''}>${l}</option>`).join('')}${v.fg&&![7,14,21,28].includes(v.fg)?`<option value="${v.fg}" selected>${v.fg} giorni</option>`:''}</select></label>
+    <label class="field"><span>Giorno fisso</span><select id="f-gg"><option value="">Scegli</option>${GIORNI.slice(1).map(gn=>`<option ${v.giorno===gn?'selected':''}>${gn}</option>`).join('')}</select></label>
+  </div>
+  <div id="gg-move"></div>
+  <div class="two">
+    <label class="field"><span>Ultima visita</span><input id="f-ult" type="date" value="${esc(v.ultima)}"></label>
+    <label class="field"><span>Prossima visita</span><input id="f-pro" type="date" value="${esc(v.prossima)}"></label>
+  </div>
+  ${p&&p.spostata?`<div class="warnbox">${p.spostata.motivo==='rinvio'?'Rimandato':'Aggiunto al giro'}: da fare ${fmtShort(p.spostata.data)}. Il ciclo resta sulla prossima visita qui sopra. <button class="undo-btn" data-act="togli-rinvio" data-id="${p.id}">Togli</button></div>`:''}
+  <label class="field"><span>Note</span><textarea id="f-note">${esc(v.note)}</textarea></label>
+  <div id="f-err"></div>
+  <button class="btn primary block" data-act="salva" data-id="${p?p.id:''}" data-giro="${opts.giro?1:''}">${isNew?(opts.giro?'Crea e metti nel giro':'Crea paziente'):'Salva modifiche'}</button>
+  ${hist.length?`<h3 style="font:600 20px/1.2 var(--f-cond);margin:20px 0 4px">Ultime operazioni</h3><div class="res">${hist.map(x=>`<div class="res-row"><div class="meta">${fmtShort(x.data)}: ${x.tipo==='consegna'?'consegnato':x.tipo==='rinvio'?'rimandato al '+fmtShort(x.a):x.tipo==='aggiunto'?'aggiunto al giro':'rinvio tolto'}</div></div>`).join('')}</div>`:''}
+  ${p?`<div style="margin-top:18px"><button class="btn danger block" data-act="elimina" data-id="${p.id}">Elimina paziente</button></div>`:''}`,
+  ()=>{
+    const orig=v.giorno;
+    const upd=()=>{
+      const gg=$('#f-gg').value, pro=$('#f-pro').value, box=$('#gg-move');
+      if(!isNew && gg && orig && gg!==orig && validISO(pro)){
+        const target=GIORNI.indexOf(gg); let delta=(target-wd(pro)+7)%7; if(delta>3) delta-=7;
+        const nd=addDays(pro,delta);
+        box.innerHTML=`<label class="checkline"><input type="checkbox" id="f-move" checked data-nd="${nd}"><span>Spostamento stabile: porta anche la prossima visita a ${fmtShort(nd)}. Da qui in poi il paziente è di ${esc(gg)}.</span></label>`;
+      } else box.innerHTML='';
+    };
+    $('#f-gg').addEventListener('change',upd);
+    $('#f-pro').addEventListener('change',upd);
+    if(isNew){ const n=$('#f-nome'); n.addEventListener('input',()=>dupWarn(n.value,opts.giro)); dupWarn(n.value,opts.giro); if(!n.value) setTimeout(()=>n.focus(),60); }
+  });
+}
+function dupWarn(nome,giro){
+  const box=$('#dup-warn'); if(!box) return;
+  const s=normTxt(nome).split(' ')[0];
+  if(!s||s.length<3){box.innerHTML='';return}
+  const L=S.pazienti.filter(p=>surname(p)===s).slice(0,5);
+  box.innerHTML=L.length?`<div class="warnbox">In archivio c’è già: ${L.map(p=>`<div style="margin-top:6px"><strong>${esc(p.nome)}</strong>, ${esc(p.localita)} ${giro?`<button class="undo-btn" data-act="add-giro" data-id="${p.id}">Metti lui nel giro</button>`:`<button class="undo-btn" data-act="scheda" data-id="${p.id}">Apri</button>`}</div>`).join('')}</div>`:'';
+}
+function salvaScheda(btn){
+  const id=btn.dataset.id, giro=!!btn.dataset.giro;
+  const nome=$('#f-nome').value.trim().toUpperCase(), loc=$('#f-loc').value.trim().toUpperCase();
+  const cnt=cleanCnt($('#f-cnt').value), fg=toFG($('#f-fg').value), gg=$('#f-gg').value;
+  const ult=$('#f-ult').value, note=$('#f-note').value.trim();
+  let pro=$('#f-pro').value;
+  const mv=$('#f-move');
+  const err=[];
+  if(!nome) err.push('il nome'); if(!loc) err.push('la località'); if(!fg) err.push('la F.G.');
+  if(err.length){$('#f-err').innerHTML=`<div class="errbox">Manca ${err.join(', ')}.</div>`;return}
+  if(mv && mv.checked) pro=mv.dataset.nd;
+  if(id){
+    const p=byId(id); if(!p) return;
+    Object.assign(p,{nome,localita:loc,cnt,fg,giorno:gg,ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note});
+    save(); closeSheet(); render(); toast(`Scheda di ${nome} salvata.`);
+  } else {
+    const D=ui.day<todayISO()?todayISO():ui.day;
+    const p={id:uid(),nome,localita:loc,cnt,fg,giorno:gg||'',ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note,spostata:null};
+    if(giro){ p.prossima=D; if(!p.giorno) p.giorno=GIORNI[wd(D)]; }
+    if(!p.giorno && p.prossima) p.giorno=GIORNI[wd(p.prossima)];
+    S.pazienti.push(p); save(); closeSheet();
+    if(giro){ui.tab='giro';ui.day=D}
+    render(); toast(giro?`${nome} creato e messo nel giro di ${fmtShort(D)}.`:`${nome} aggiunto all’archivio.`);
+  }
+}
+function eliminaPaziente(id){
+  const p=byId(id); if(!p) return;
+  openSheet(`<h2>Eliminare ${esc(p.nome)}?</h2><p class="lead">${esc(p.localita)}, CNT ${esc(p.cnt||'?')}. La scheda sparisce dal giro e dall’archivio. Le consegne passate restano nello storico.</p>
+  <div class="acts"><button class="act" style="border-color:var(--late);color:var(--late)" data-act="elimina-ok" data-id="${p.id}">Elimina</button><button class="act" data-act="chiudi">Annulla</button></div>`);
+}
+
+/* ---------- arretrati già fatti ---------- */
+function cicloRecupero(p){
+  const T=todayISO(), a=p.prossima, fg=p.fg;
+  if(!a||!fg||a>T) return null;
+  let last=a; while(addDays(last,fg)<=T) last=addDays(last,fg);
+  return {data:last, next:addDays(last,fg)};
+}
+function sheetGiaFatti(){
+  const T=todayISO();
+  const L=S.pazienti.filter(p=>{const e=eff(p);return e&&e<T}).sort((a,b)=>normTxt(a.localita).localeCompare(normTxt(b.localita))||a.nome.localeCompare(b.nome));
+  openSheet(`<h2>Arretrati già fatti</h2><p class="lead">Spunta solo chi hai già consegnato. Viene registrato nel suo ultimo giorno di ciclo e la prossima visita segue la cadenza. Chi non spunti resta arretrato in rosso.</p>
+  <div class="res">${L.map(p=>{const c=cicloRecupero(p);return `<label class="checkline" style="border-bottom:1px solid var(--line);padding:10px 0;margin:0"><input type="checkbox" data-gf="${p.id}" ${c?'':'disabled'}><span><strong>${esc(p.nome)}</strong> ${cntBadge(p.cnt,true)}<br><span class="meta">${esc(p.localita)}. Doveva ${fmtShort(eff(p))}${c?`. Registro ${fmtShort(c.data)}, prossima ${fmtShort(c.next)}`:'. Manca la F.G.: sistemalo dalla scheda'}</span></span></label>`}).join('')}</div>
+  <div style="position:sticky;bottom:0;background:var(--surface);padding-top:12px"><button class="btn primary block" data-act="gia-fatti-ok" id="gf-btn" disabled>Segna come consegnati</button></div>`,
+  r=>{const up=()=>{const n=r.querySelectorAll('[data-gf]:checked').length;const b=$('#gf-btn');b.disabled=!n;b.textContent=n?`Segna ${n} come consegnat${n===1?'o':'i'}`:'Segna come consegnati'};r.querySelectorAll('[data-gf]').forEach(x=>x.addEventListener('change',up))});
+}
+function giaFattiOk(){
+  const ids=[...document.querySelectorAll('[data-gf]:checked')].map(x=>x.dataset.gf);
+  let n=0;
+  for(const id of ids){
+    const p=byId(id); const c=p&&cicloRecupero(p); if(!c) continue;
+    const prima=snap(p);
+    p.ultima=c.data; p.prossima=c.next; p.spostata=null;
+    logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, note:p.note, fg:p.fg, data:c.data, prossima:c.next, prima, recupero:true});
+    n++;
+  }
+  save(); closeSheet(); render();
+  toast(`${n} arretrat${n===1?'o segnato':'i segnati'} come consegnat${n===1?'o':'i'}. Si annullano uno per uno dallo Storico.`);
+}
+
+/* ---------- foglio giro ---------- */
+function foglio(D){
+  const g=giroDi(D);
+  const items=[
+    ...g.senzaData.map(p=>({p,tag:'SENZA DATA',done:false})),
+    ...g.arretrati.map(p=>({p,tag:'ARR. dal '+fmtNum(eff(p)),done:false})),
+    ...g.delGiorno.map(p=>({p,tag:'',done:false})),
+    ...g.fatti.map(h=>({p:{nome:h.nome,localita:h.localita,cnt:h.cnt,fg:h.fg,note:h.note},tag:'',done:true}))
+  ].sort((a,b)=>normTxt(a.p.localita).localeCompare(normTxt(b.p.localita))||a.p.nome.localeCompare(b.p.nome));
+  const car=riepilogo(items.map(x=>x.p));
+  const n=items.length, MAX=34;
+  const BUDGET=228;
+  const rowH = n>MAX ? Math.max(3.9, BUDGET/n) : 6.7;
+  const fs = Math.min(10, rowH*1.4);
+  const empties = Math.max(0, Math.floor(BUDGET/rowH) - n);
+  let prev=null, rows='';
+  for(const it of items){
+    const k=normTxt(it.p.localita); const grp=prev!==null && k!==prev; prev=k;
+    const note=[it.tag, it.p.note].filter(Boolean).join(' – ');
+    rows+=`<tr class="${grp?'grp':''}${it.tag?' arr':''}"><td class="v">${it.done?'✓':''}</td><td class="n">${esc(it.p.nome)}</td><td class="c">${esc(it.p.cnt||'?')}</td><td>${esc(it.p.localita)}</td><td class="c">${it.p.fg||''}</td><td>${esc(note)}</td></tr>`;
+  }
+  for(let i=0;i<empties;i++) rows+=`<tr class="${i===0&&n?'grp':''}"><td class="v"></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+  const {y,m,d}=dm(D);
+  const extra=[];
+  if(Object.keys(car.gas).length) extra.push('Gassosi a parte: '+Object.entries(car.gas).map(([t,q])=>`${q}×${t}`).join(', '));
+  if(car.resi.length) extra.push('Resi: '+car.resi.map(x=>x.nome).join(', '));
+  if(car.variabili.length) extra.push('Variabile: '+car.variabili.map(x=>x.nome).join(', '));
+  const css=`@page{size:A4 portrait;margin:10mm}
+  .fg-sheet{font-family:Arial,Helvetica,sans-serif;color:#000;width:190mm}
+  .fg-head{display:flex;justify-content:space-between;align-items:baseline;height:10mm;margin-bottom:2mm}
+  .fg-head h1{font-size:15pt;margin:0}
+  .fg-head span{font-size:10pt}
+  .fg-t{width:100%;border-collapse:collapse;table-layout:fixed}
+  .fg-t th,.fg-t td{border:0.6pt solid #000;padding:0 1.5mm;height:${rowH}mm;line-height:1;box-sizing:border-box;font-size:${fs}pt;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .fg-t th{background:#e6e6e6;height:7mm;font-size:9pt;text-align:left}
+  .fg-t td.v{text-align:center;font-weight:bold}
+  .fg-t td.v::before{content:"";display:inline-block;width:3.2mm;height:3.2mm;border:0.9pt solid #000;vertical-align:middle;margin-right:0}
+  .fg-t td.v:not(:empty)::before{display:none}
+  .fg-t td.n{font-weight:bold}
+  .fg-t td.c{text-align:center;font-weight:bold}
+  .fg-t tr.grp td{border-top:1.6pt solid #000}
+  .fg-t tr.arr td.n{text-decoration:underline}
+  .fg-sum{margin-top:3mm;font-size:10pt;line-height:1.35}
+  .fg-sum b{font-size:11pt}`;
+  const body=`<div class="fg-sheet"><div class="fg-head"><h1>Giro di ${GIORNI[wd(D)]} ${d} ${MESI[m-1]} ${y}</h1><span>${n} pazienti</span></div>
+  <table class="fg-t"><colgroup><col style="width:8mm"><col style="width:46mm"><col style="width:20mm"><col style="width:40mm"><col style="width:11mm"><col></colgroup>
+  <thead><tr><th>V</th><th>PAZIENTE</th><th>CNT</th><th>LOCALITA'</th><th>F.G.</th><th>NOTE</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="fg-sum"><b>Riepilogo CNT:</b> ${car.tipi.map(t=>`${t} × ${car.tot[t]}`).join('&nbsp;&nbsp;&nbsp;')}&nbsp;&nbsp;&nbsp;<b>Totale ${car.totale} bombole</b>${extra.length?'<br>'+esc(extra.join('. ')):''}</div></div>`;
+  return {css, body, doc:`<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>Giro ${D}</title><style>body{margin:0}${css}</style></head><body>${body}</body></html>`};
+}
+function sheetFoglio(){
+  const g=giroDi(ui.day);
+  const n=g.senzaData.length+g.arretrati.length+g.delGiorno.length+g.fatti.length;
+  openSheet(`<h2>Foglio del giorno</h2><p class="lead">${fmtLong(ui.day)}, ${n} pazienti raggruppati per località, con righe vuote in fondo e riepilogo bombole. Tutto in una pagina A4.</p>
+  <div class="acts"><button class="act go" data-act="stampa">Stampa o salva in PDF</button><button class="act" data-act="scarica-foglio">Scarica il foglio</button></div>
+  <p class="hint" style="margin-top:12px">Se la stampa non si apre, scarica il foglio e stampalo dal file.</p>`);
+}
+function stampa(){
+  const f=foglio(ui.day);
+  $('#print-area').innerHTML=`<style>${f.css}</style>${f.body}`;
+  closeSheet();
+  try{ window.print(); }catch(e){ toast('La stampa non è disponibile qui: usa Scarica il foglio.'); }
+}
+
+/* ---------- file ---------- */
+let dlP=null;
+function getDownloads(){
+  if(!dlP) dlP=(window.claude && typeof window.claude.use==='function') ? window.claude.use('downloads').catch(()=>null) : Promise.resolve(null);
+  return dlP;
+}
+async function saveFile(name,data,mime){
+  const dl=await getDownloads();
+  if(dl){
+    try{ await dl.save({filename:name,data}); return true; }
+    catch(e){
+      const c=e&&e.code;
+      if(c==='declined') return false;
+      if(c==='rate_limited'){toast('Attendi un attimo e riprova.');return false}
+      if(!['unavailable','not_granted','capability_disabled','capability_removed'].includes(c)){toast('Download non riuscito.');return false}
+    }
+  }
+  const blob=new Blob([data],{type:mime});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+  return true;
+}
+function csvField(v){const s=String(v ?? '');return /[",;\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+function exportCSV(){
+  const H=['NOME','LOCALITA','CNT','FG','GIORNO_FISSO','ULTIMA_VISITA','PROSSIMA_VISITA','RINVIO','NOTE'];
+  const L=[...S.pazienti].sort((a,b)=>a.nome.localeCompare(b.nome));
+  const rows=L.map(p=>[p.nome,p.localita,p.cnt,p.fg||'',p.giorno,p.ultima,p.prossima,p.spostata?p.spostata.data:'',p.note].map(csvField).join(','));
+  saveFile(`Pazienti_${todayISO()}.csv`,'\ufeff'+[H.join(','),...rows].join('\r\n'),'text/csv').then(ok=>ok&&toast('CSV pazienti pronto.'));
+}
+function backup(){
+  const data=JSON.stringify({app:'giro-ossigeno',v:1,esportato:new Date().toISOString(),...S});
+  saveFile(`Backup_Giro_${todayISO()}.json`,data,'application/json').then(ok=>ok&&toast('Backup scaricato.'));
+}
+async function ripristina(file){
+  try{
+    const s=JSON.parse(await file.text());
+    if(!s || !Array.isArray(s.pazienti)) throw new Error('formato');
+    openSheet(`<h2>Ripristinare il backup?</h2><p class="lead">Contiene ${s.pazienti.length} pazienti e ${(s.storico||[]).length} operazioni${s.esportato?`, salvato il ${fmtShort(s.esportato.slice(0,10))}`:''}. I dati attuali di questo telefono vengono sostituiti.</p>
+    <div class="acts"><button class="act go" data-act="ripristina-ok">Ripristina</button><button class="act" data-act="chiudi">Annulla</button></div>`);
+    pendingRestore=s;
+  }catch(e){toast('Questo file non è un backup valido del giro.')}
+}
+let pendingRestore=null;
+
+/* ---------- import CSV / Excel ---------- */
+const CAMPI=[
+  ['nome','Nome',['nome','paziente','cognome','nominativo','cliente','cognome nome']],
+  ['localita','Località',['localita','paese','comune','frazione','indirizzo','luogo','citta']],
+  ['cnt','CNT',['cnt','bombola','bombole','tipo','contenitore','taglia','cnt bombola']],
+  ['fg','F.G.',['fg','f g','frequenza','freq','giorni','ciclo','frequenza giorni']],
+  ['giorno','Giorno fisso',['giorno','giorno fisso','gg','giorno settimana','giorno visita']],
+  ['ultima','Ultima visita',['ultima','ultima visita','ultima consegna','data ultima','ultimo']],
+  ['prossima','Prossima visita',['prossima','prossima visita','prossima consegna','data prossima']],
+  ['rinvio','Rinvio',['rinvio','rimandato','rimanda']],
+  ['note','Note',['note','nota','annotazioni','indicazioni']]
+];
+function normH(s){return normTxt(s).toLowerCase()}
+function parseCSV(text){
+  text=text.replace(/^\ufeff/,'');
+  const first=text.split(/\r?\n/)[0]||'';
+  const cnt=ch=>first.split(ch).length;
+  const del=[';',',','\t'].sort((a,b)=>cnt(b)-cnt(a))[0];
+  const rows=[]; let row=[], f='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++} else q=false } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===del){row.push(f);f=''}
+    else if(c==='\n'){row.push(f);rows.push(row);row=[];f=''}
+    else if(c!=='\r') f+=c;
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row)}
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+function loadXLSX(){
+  return new Promise((res,rej)=>{
+    if(window.XLSX) return res(window.XLSX);
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>res(window.XLSX); s.onerror=()=>rej(new Error('xlsx'));
+    document.head.appendChild(s);
+  });
+}
+function autoMap(headers){
+  const H=headers.map(normH), map={}, used=new Set();
+  const score=(h,syn)=>{let best=0;for(const s of syn){if(h===s) best=Math.max(best,3);else if(s.length>=4 && h.startsWith(s)) best=Math.max(best,2);else if(s.length>=5 && h.includes(s)) best=Math.max(best,1)}return best};
+  const cand=[];
+  CAMPI.forEach(([k,,syn])=>H.forEach((h,i)=>{const sc=score(h,syn);if(sc) cand.push({k,i,sc})}));
+  cand.sort((a,b)=>b.sc-a.sc);
+  for(const c of cand){ if(map[c.k]!==undefined || used.has(c.i)) continue; map[c.k]=c.i; used.add(c.i); }
+  return map;
+}
+let imp=null;
+async function leggiImport(file){
+  try{
+    let rows;
+    if(/\.xlsx?$/i.test(file.name)){
+      toast('Leggo il file Excel…');
+      const X=await loadXLSX();
+      const wb=X.read(await file.arrayBuffer(),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      rows=X.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}).filter(r=>r.some(x=>String(x).trim()!==''));
+    } else rows=parseCSV(await file.text());
+    if(rows.length<2) throw new Error('vuoto');
+    let hi=0, best=-1;
+    for(let i=0;i<Math.min(6,rows.length);i++){const n=Object.keys(autoMap(rows[i])).length;if(n>best){best=n;hi=i}}
+    const headers=rows[hi].map(x=>String(x).trim());
+    const sig=headers.map(normH).join('|');
+    const map=(S.mappe&&S.mappe[sig])?{...S.mappe[sig]}:autoMap(headers);
+    imp={headers, data:rows.slice(hi+1), map, sig, mode:S.pazienti.length?'aggiorna':'sostituisci'};
+    sheetImport();
+  }catch(e){toast(e.message==='xlsx'?'Per leggere Excel serve la connessione. In alternativa salva il file come CSV.':'Non riesco a leggere questo file. Prova a salvarlo come CSV.')}
+}
+function mappedRows(){
+  const g=(r,k)=>imp.map[k]===undefined||imp.map[k]===''?'':r[imp.map[k]];
+  return imp.data.map(r=>{const o={};CAMPI.forEach(([k])=>o[k]=g(r,k));return o}).filter(o=>String(o.nome).trim());
+}
+function sheetImport(){
+  const R=mappedRows();
+  const prev=R.slice(0,3).map(fromRow);
+  const missing=['nome','localita','fg'].filter(k=>imp.map[k]===undefined||imp.map[k]==='');
+  openSheet(`<h2>Importa pazienti</h2><p class="lead">${imp.data.length} righe nel file. Controlla che ogni campo prenda la colonna giusta.</p>
+  ${CAMPI.map(([k,l])=>`<label class="field"><span>${l}</span><select data-map="${k}"><option value="">Nessuna colonna</option>${imp.headers.map((h,i)=>`<option value="${i}" ${String(imp.map[k])===String(i)?'selected':''}>${esc(h||('Colonna '+(i+1)))}</option>`).join('')}</select></label>`).join('')}
+  <div class="map-prev"><table><tr><th>Nome</th><th>Località</th><th>CNT</th><th>F.G.</th><th>Giorno</th><th>Prossima</th></tr>${prev.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.localita)}</td><td>${esc(p.cnt)}</td><td>${p.fg||'?'}</td><td>${esc(p.giorno)}</td><td>${fmtShort(p.prossima)}</td></tr>`).join('')}</table></div>
+  ${missing.length?`<div class="errbox">Scegli la colonna per: ${missing.map(k=>CAMPI.find(c=>c[0]===k)[1]).join(', ')}.</div>`:''}
+  ${S.pazienti.length?`<label class="checkline"><input type="radio" name="imode" value="aggiorna" ${imp.mode==='aggiorna'?'checked':''}><span>Aggiungi e aggiorna: chi ha lo stesso nome e località viene aggiornato, gli altri aggiunti.</span></label>
+  <label class="checkline"><input type="radio" name="imode" value="sostituisci" ${imp.mode==='sostituisci'?'checked':''}><span>Sostituisci tutto l’archivio con questo file.</span></label>`:''}
+  <button class="btn primary block" data-act="importa-ok" ${missing.length?'disabled':''}>Importa ${R.length} pazienti</button>`,
+  r=>{
+    r.querySelectorAll('[data-map]').forEach(s=>s.addEventListener('change',()=>{imp.map[s.dataset.map]=s.value===''?'':+s.value;sheetImport()}));
+    r.querySelectorAll('input[name=imode]').forEach(x=>x.addEventListener('change',()=>{imp.mode=x.value}));
+  });
+}
+function eseguiImport(){
+  const R=mappedRows().map(fromRow);
+  S.mappe=S.mappe||{}; S.mappe[imp.sig]={...imp.map};
+  let nuovi=0, agg=0;
+  if(imp.mode==='sostituisci'||!S.pazienti.length){
+    S.pazienti=R; nuovi=R.length;
+    S.dismissed=initialDismissed(R);
+  } else {
+    const key=p=>normTxt(p.nome)+'|'+normTxt(p.localita);
+    const m=new Map(S.pazienti.map(p=>[key(p),p]));
+    for(const r of R){
+      const ex=m.get(key(r));
+      if(ex){
+        for(const k of ['cnt','fg','giorno','ultima','prossima','note']) if(r[k]) ex[k]=r[k];
+        if(r.spostata) ex.spostata=r.spostata;
+        agg++;
+      } else { S.pazienti.push(r); m.set(key(r),r); nuovi++; }
+    }
+  }
+  save(); closeSheet(); imp=null; ui.tab='pazienti'; render();
+  toast(`Importati: ${nuovi} nuovi${agg?`, ${agg} aggiornati`:''}.`);
+}
+function sheetSvuota(){
+  openSheet(`<h2>Svuota archivio</h2><p class="lead">Vengono cancellati tutti i ${S.pazienti.length} pazienti da questo telefono. Prima conviene scaricare un backup.</p>
+  <button class="btn block" data-act="backup">Scarica backup</button>
+  <label class="field" style="margin-top:14px"><span>Per confermare scrivi SVUOTA</span><input id="sv-ok" autocomplete="off" autocapitalize="characters"></label>
+  <label class="checkline"><input type="checkbox" id="sv-st"><span>Cancella anche lo storico delle consegne</span></label>
+  <button class="btn danger block" data-act="svuota-ok">Svuota archivio</button>`);
+}
+
+/* ---------- eventi ---------- */
+const A={
+  tab:b=>{ui.tab=b.dataset.tab;window.scrollTo(0,0);render()},
+  giorno:b=>{let d=addDays(ui.day,+b.dataset.n);if(wd(d)===0) d=addDays(d,+b.dataset.n);ui.day=d;ui.follow=d===todayISO();render()},
+  oggi:()=>{ui.day=todayISO();ui.follow=true;render()},
+  vai:b=>{ui.day=b.dataset.d;ui.follow=ui.day===todayISO();ui.tab='giro';closeSheet();window.scrollTo(0,0);render()},
+  'scegli-giorno':()=>{const i=$('#pick-day');i.value=ui.day;try{i.showPicker?i.showPicker():i.click()}catch(e){i.click()}},
+  consegna:b=>consegna(b.dataset.id),
+  azioni:b=>sheetAzioni(b.dataset.id),
+  rimanda:b=>rimanda(b.dataset.id,+b.dataset.n),
+  'togli-rinvio':b=>togliRinvio(b.dataset.id),
+  annulla:b=>annulla(b.dataset.hid),
+  'toast-undo':()=>{const f=toastUndo;$('#toast').hidden=true;toastUndo=null;f&&f()},
+  rimandati:()=>sheetRimandati(),
+  carico:()=>sheetCarico(),
+  aggiungi:()=>sheetAggiungi(),
+  'add-giro':b=>aggiungiAlGiro(b.dataset.id),
+  'nuovo-giro':()=>{const q=($('#add-q')||{}).value||'';const D=ui.day<todayISO()?todayISO():ui.day;sheetScheda(null,{giro:true,nome:q.toUpperCase(),giorno:GIORNI[wd(D)]})},
+  nuovo:()=>sheetScheda(null,{}),
+  scheda:b=>sheetScheda(b.dataset.id),
+  'set-cnt':b=>{$('#f-cnt').value=b.dataset.v},
+  salva:b=>salvaScheda(b),
+  elimina:b=>eliminaPaziente(b.dataset.id),
+  'elimina-ok':b=>{const p=byId(b.dataset.id);S.pazienti=S.pazienti.filter(x=>x.id!==b.dataset.id);save();closeSheet();render();p&&toast(`${p.nome} eliminato.`)},
+  diversi:b=>{S.dismissed.push(b.dataset.k);save();render()},
+  'gdiv-ok':b=>{const p=byId(b.dataset.id);if(p){S.dismissed.push('gg|'+p.id+'|'+p.prossima+'|'+p.giorno);save();render()}},
+  filtro:b=>{ui.filtro=b.dataset.f;render()},
+  hfiltro:b=>{ui.hf=b.dataset.f;ui.hlim=200;render()},
+  'piu-storico':()=>{ui.hlim+=200;$('#st-list').innerHTML=storicoListHTML()},
+  foglio:()=>sheetFoglio(),
+  'gia-fatti':()=>sheetGiaFatti(),
+  'gia-fatti-ok':()=>giaFattiOk(),
+  stampa:()=>stampa(),
+  'scarica-foglio':()=>{const f=foglio(ui.day);saveFile(`Giro_${ui.day}.html`,f.doc,'text/html').then(ok=>ok&&toast('Foglio scaricato: aprilo e stampalo.'));closeSheet()},
+  backup:()=>backup(),
+  'export-csv':()=>exportCSV(),
+  ripristina:()=>{const i=$('#file-backup');i.value='';i.click()},
+  'ripristina-ok':()=>{if(!pendingRestore)return;const s=pendingRestore;S={v:1,pazienti:s.pazienti,storico:s.storico||[],dismissed:s.dismissed||[],mappe:s.mappe||{},creato:s.creato||todayISO(),patch:s.patch||[]};applicaCorrezioni(S);pendingRestore=null;save();closeSheet();render();toast('Backup ripristinato.')},
+  importa:()=>{const i=$('#file-import');i.value='';i.click()},
+  'importa-ok':()=>eseguiImport(),
+  svuota:()=>sheetSvuota(),
+  'svuota-ok':()=>{if(normTxt($('#sv-ok').value)!=='SVUOTA'){toast('Scrivi SVUOTA per confermare.');return}const st=$('#sv-st').checked;S.pazienti=[];S.dismissed=[];if(st)S.storico=[];save();closeSheet();render();toast('Archivio svuotato.')},
+  installa:async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();try{await deferredPrompt.userChoice}catch(e){}deferredPrompt=null;render()},
+  chiudi:()=>closeSheet()
+};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b||b.disabled) return;
+  const f=A[b.dataset.act]; if(f){e.preventDefault();f(b,e)}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='paz-q'){ui.q=t.value;$('#paz-list').innerHTML=pazListHTML()}
+  else if(t.id==='st-q'){ui.hq=t.value;$('#st-list').innerHTML=storicoListHTML()}
+  else if(t.id==='add-q'){$('#add-res').innerHTML=addResHTML(t.value)}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet-root').hidden) closeSheet()});
+$('#pick-day').addEventListener('change',e=>{if(validISO(e.target.value)){ui.day=e.target.value;ui.follow=ui.day===todayISO();ui.tab='giro';render()}});
+$('#file-import').addEventListener('change',e=>{const f=e.target.files[0];if(f) leggiImport(f)});
+$('#file-backup').addEventListener('change',e=>{const f=e.target.files[0];if(f) ripristina(f)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(ui.follow&&ui.day!==todayISO()) ui.day=todayISO();render()}});
+window.addEventListener('storage',e=>{if(e.key===KEY){S=load();render()}});
+window.addEventListener('afterprint',()=>{$('#print-area').innerHTML=''});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(ui.tab==='altro')render()});
+
+S = load();
+save();
+render();
+getDownloads();
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
+</script>
+</body>
+</html>
