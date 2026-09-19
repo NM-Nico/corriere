@@ -1,12 +1,12 @@
 {
- "name": "Giro Ossigeno",
- "short_name": "Giro MedicAir",
+ "name": "Medic Air",
+ "short_name": "Medic Air",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
  "orientation": "portrait",
- "background_color": "#E8EEEA",
- "theme_color": "#1b8cab",
+ "background_color": "#E6EEF4",
+ "theme_color": "#0A7CC1",
  "lang": "it",
  "icons": [
   {
