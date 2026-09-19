@@ -122,10 +122,19 @@ input,select,textarea{font:inherit;color:inherit}
 
 /* Navigazione */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.nav-in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.nav-in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tag.vc{background:#DCEBFA;color:#17518C}
+:root[data-theme="dark"] .tag.vc{background:#15314D;color:#9CCBFA}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tag.vc{background:#15314D;color:#9CCBFA}}
+.vrow{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 14px}
+.vrow-top{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.vrow .btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.vrow .btns .btn{min-height:44px}
 .nav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;font-size:13px;font-weight:600;color:var(--muted);min-height:58px}
 .nav button svg{width:24px;height:24px}
 .nav button[aria-current="page"]{color:var(--oxy)}
+.nav button{position:relative}
+.nav .badge{position:absolute;top:3px;left:calc(50% + 6px);margin:0}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--late);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:3px}
 
 /* Pagine */
@@ -301,6 +310,8 @@ function fromRow(r){
   if(!p.prossima && p.ultima && p.fg) p.prossima = addDays(p.ultima,p.fg);
   const rv = parseDateAny(r.rinvio ?? r.RINVIO);
   if(rv) p.spostata = {data:rv, motivo:'rinvio'};
+  const vd = parseDateAny(r.vacanza_dal ?? r.VACANZA_DAL), va = parseDateAny(r.vacanza_al ?? r.VACANZA_AL);
+  if(vd || va) p.vacanza = {dal:vd||todayISO(), al:va||'', nota:''};
   if(!p.giorno && p.prossima) p.giorno = GIORNI[wd(p.prossima)];
   return p;
 }
@@ -355,7 +366,8 @@ function save(){
   catch(e){ storageOK = false; }
 }
 function byId(id){return S.pazienti.find(p=>p.id===id)}
-function eff(p){return (p.spostata && p.spostata.data) || p.prossima || ''}
+function eff(p){if(p.spostata && p.spostata.data) return p.spostata.data; if(p.vacanza) return p.vacanza.al||''; return p.prossima||''}
+function inVacanza(p){return !!(p.vacanza && !(p.spostata && p.spostata.data) && (!p.vacanza.al || p.vacanza.al>todayISO()))}
 
 /* ---------- correzioni ai dati ---------- */
 const PATCHES=[];
@@ -402,23 +414,24 @@ function rinvioDate(p,D,n){
   return r;
 }
 function dataOperazione(D){const T=todayISO();return D<T?D:T}
-function snap(p){return {ultima:p.ultima, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null}}
+function snap(p){return {ultima:p.ultima, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null, vacanza:p.vacanza?{...p.vacanza}:null}}
 function logOp(h){S.storico.unshift(Object.assign({id:uid(), ts:Date.now()},h))}
 
 function consegna(id){
   const p=byId(id); if(!p) return;
   const d=dataOperazione(ui.day);
   const prima=snap(p);
+  if(p.vacanza){p.prossima='';}
   const next=calcNext(p,d);
-  p.ultima=d; p.prossima=next; p.spostata=null;
+  p.ultima=d; p.prossima=next; p.spostata=null; p.vacanza=null;
   logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, note:p.note, fg:p.fg, data:d, prossima:next, prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
   toast(next ? `${p.nome}: consegnato. Prossima ${fmtShort(next)}.` : `${p.nome}: consegnato. Manca la F.G.: imposta la prossima visita nella scheda.`, ()=>annulla(hid));
 }
-function rimanda(id,n){
+function rimanda(id,n,dataFissa){
   const p=byId(id); if(!p) return;
-  const nuova=rinvioDate(p,ui.day,n);
+  const nuova=dataFissa||rinvioDate(p,ui.day,n);
   const prima=snap(p);
   p.spostata={data:nuova, motivo:'rinvio'};
   logOp({tipo:'rinvio', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, data:dataOperazione(ui.day), a:nuova, prima});
@@ -445,6 +458,29 @@ function togliRinvio(id){
   save(); closeSheet(); render();
   toast(`${p.nome}: torna al ciclo, prossima ${fmtShort(p.prossima)}.`);
 }
+function prossimoGiornoFisso(p,da){
+  const i=GIORNI.indexOf(p.giorno); if(i<0) return da;
+  let d=da; while(wd(d)!==i) d=addDays(d,1); return d;
+}
+function mettiInVacanza(id,al,nota){
+  const p=byId(id); if(!p) return;
+  const prima=snap(p), nuovo=!p.vacanza;
+  p.vacanza={dal:p.vacanza?p.vacanza.dal:todayISO(), al:al||'', nota:nota||''};
+  if(p.spostata) p.spostata=null;
+  logOp({tipo:'vacanza', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, data:todayISO(), a:al||'', prima});
+  save(); closeSheet(); render();
+  const hid=S.storico[0].id;
+  toast(nuovo?`${p.nome} in vacanza${al?`, rientro ${fmtShort(al)}`:''}. Non compare più nel giro.`:`Vacanza di ${p.nome} aggiornata.`, ()=>annulla(hid));
+}
+function rimettiAttivo(id,data){
+  const p=byId(id); if(!p||!validISO(data)) return;
+  const prima=snap(p);
+  p.vacanza=null; p.spostata=null; p.prossima=data;
+  logOp({tipo:'rientro', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, data:todayISO(), a:data, prima});
+  save(); closeSheet(); render();
+  const hid=S.storico[0].id;
+  toast(`${p.nome} di nuovo attivo, nel giro di ${fmtShort(data)}.`, ()=>annulla(hid));
+}
 function canUndo(h){
   if(!h.prima) return false;
   const p=byId(h.pid); if(!p) return false;
@@ -454,7 +490,7 @@ function annulla(hid){
   const h=S.storico.find(x=>x.id===hid); if(!h) return;
   if(!canUndo(h)){toast('Si può annullare solo l’ultima operazione di ogni paziente.');return}
   const p=byId(h.pid);
-  p.ultima=h.prima.ultima; p.prossima=h.prima.prossima; p.spostata=h.prima.spostata;
+  p.ultima=h.prima.ultima; p.prossima=h.prima.prossima; p.spostata=h.prima.spostata; p.vacanza=h.prima.vacanza||null;
   S.storico=S.storico.filter(x=>x!==h);
   save(); closeSheet(); render();
   toast(`Annullato: ${p.nome}.`);
@@ -466,7 +502,7 @@ function giroDi(D){
   const arretrati=[], delGiorno=[], senzaData=[];
   for(const p of S.pazienti){
     const e=eff(p);
-    if(!e){ if(D===T) senzaData.push(p); continue; }
+    if(!e){ if(D===T && !p.vacanza) senzaData.push(p); continue; }
     if(e===D) delGiorno.push(p);
     else if(e<T && D>=T) arretrati.push(p);
   }
@@ -480,7 +516,7 @@ function contaGiorno(d, idx){
   if(d===T){ for(const [k,v] of idx) if(k<T) late+=v; late+=idx.get('')||0; }
   return {n:n+late, late};
 }
-function indiceDate(){const m=new Map();for(const p of S.pazienti){const e=eff(p);m.set(e,(m.get(e)||0)+1)}return m}
+function indiceDate(){const m=new Map();for(const p of S.pazienti){const e=eff(p);if(!e&&p.vacanza) continue;m.set(e,(m.get(e)||0)+1)}return m}
 function listaRimandati(){return S.pazienti.filter(p=>p.spostata&&p.spostata.motivo==='rinvio').sort((a,b)=>a.spostata.data.localeCompare(b.spostata.data)||a.nome.localeCompare(b.nome))}
 
 function parseCnt(cnt,note){
@@ -525,6 +561,7 @@ function verifiche(){
     if(isPossibleDup(a,b)){const k=pairKey(a,b); if(!dis.has(k)) out.push({tipo:'doppio',a,b,k})}
   }
   for(const p of P){
+    if(p.vacanza) continue;
     if(!eff(p)) out.push({tipo:'data',p});
     if(!p.fg) out.push({tipo:'fg',p});
     if(!p.cnt) out.push({tipo:'cnt',p});
@@ -546,6 +583,7 @@ function navHTML(){
   const it=[
     ['giro','Giro','<path d="M3 17h2m14 0h2M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM9 17h6M3 17V7h11v10M14 10h4l3 4v3"/>'],
     ['pazienti','Pazienti','<path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/>'],
+    ['vacanza','Vacanza','<path d="M12 3a9 9 0 00-9 9h18a9 9 0 00-9-9zM12 12v9M9 21h6M12 3c-2.5 2.5-3.5 5.5-3.5 9M12 3c2.5 2.5 3.5 5.5 3.5 9"/>'],
     ['storico','Storico','<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2"/>'],
     ['altro','Altro','<path d="M4 6h16M4 12h16M4 18h16"/>']
   ];
@@ -558,6 +596,7 @@ function render(){
   if(ui.tab==='giro') app.innerHTML=renderGiro();
   else if(ui.tab==='pazienti') app.innerHTML=renderPazienti();
   else if(ui.tab==='storico') app.innerHTML=renderStorico();
+  else if(ui.tab==='vacanza') app.innerHTML=renderVacanza();
   else app.innerHTML=renderAltro();
 }
 function storageWarn(){return storageOK?'':'<div class="storage-warn">Il telefono non sta salvando i dati di questa pagina. Scarica un backup da Altro prima di chiudere.</div>'}
@@ -578,6 +617,7 @@ function rowHTML(p,kind){
   }
   if(p.spostata && p.spostata.motivo==='rinvio') meta.push(`<span class="rv">Rimandato (ciclo ${fmtShort(p.prossima)})</span>`);
   if(p.spostata && p.spostata.motivo==='aggiunto') meta.push('<span class="rv">Aggiunto al giro</span>');
+  if(p.vacanza) meta.push('<span class="rv">Rientro dalle vacanze</span>');
   meta.push('F.G. '+(p.fg||'?'));
   return `<div class="row${kind==='late'||kind==='nodate'||kind==='pastpend'?' late':''}">
     <button class="check" data-act="consegna" data-id="${p.id}" aria-label="Segna consegnato ${esc(p.nome)}">${ICON_CHECK}</button>
@@ -683,6 +723,7 @@ function pazListHTML(){
     let when = e?`Prossima ${fmtShort(e)}`:'<span class="lt">Senza data</span>';
     if(e && e<T) when=`<span class="lt">Arretrato dal ${fmtShort(e)}</span>`;
     if(p.spostata && p.spostata.motivo==='rinvio') when+=` <span class="rv">(rimandato)</span>`;
+    if(inVacanza(p)) when=`<span class="tag vc">In vacanza</span>${p.vacanza.al?`rientro ${fmtShort(p.vacanza.al)}`:'rientro non fissato'}`;
     return `<button class="prow" data-act="scheda" data-id="${p.id}"><span class="row-main"><span class="nome">${esc(p.nome)}</span><span class="meta">${esc(p.localita)}</span><span class="meta">F.G. ${p.fg||'?'}, ${esc(p.giorno||'giorno non impostato')}. ${when}</span></span>${cntBadge(p.cnt,true)}</button>`;
   }).join('')}</div>`;
 }
@@ -700,6 +741,51 @@ function verificaHTML(){
   }).join('');
 }
 
+function renderVacanza(){
+  const T=todayISO();
+  const via=S.pazienti.filter(inVacanza).sort((a,b)=>a.nome.localeCompare(b.nome));
+  const tornati=S.pazienti.filter(p=>p.vacanza&&!inVacanza(p)).sort((a,b)=>eff(a).localeCompare(eff(b)));
+  let h=`<header class="page-h"><h1>Vacanza</h1><span class="sub">${via.length} fuori</span><button class="btn primary" data-act="vacanza-cerca">Aggiungi</button></header>${storageWarn()}`;
+  h+=`<div class="sec-note" style="padding-top:12px">Chi è qui non compare nel giro, negli arretrati e nel conteggio bombole. Quando torna, rimettilo attivo e scegli da che giorno riprenderlo.</div>`;
+  const row=p=>`<div class="vrow"><div class="vrow-top"><div class="row-main"><span class="nome">${esc(p.nome)}</span><span class="meta">${esc(p.localita)}. F.G. ${p.fg||'?'}, ${esc(p.giorno||'—')}</span><span class="meta">Via dal ${fmtShort(p.vacanza.dal)}. ${p.vacanza.al?(p.vacanza.al<=T?`<span class="lt">Rientrato il ${fmtShort(p.vacanza.al)}: è nel giro</span>`:`Rientro previsto ${fmtShort(p.vacanza.al)}`):'Rientro non fissato'}</span>${p.vacanza.nota?`<span class="note">${esc(p.vacanza.nota)}</span>`:''}</div>${cntBadge(p.cnt,true)}</div>
+    <div class="btns"><button class="btn primary" data-act="rientro" data-id="${p.id}">Rimetti attivo</button><button class="btn" data-act="vacanza" data-id="${p.id}">Modifica</button></div></div>`;
+  if(tornati.length) h+=`<div class="sec late"><h2>Rientrati</h2><span class="c">${tornati.length}</span></div><div class="sec-note">La data di rientro è arrivata: sono già nel giro. Rimettili attivi per fissare il giorno di ripresa.</div><div class="list">${tornati.map(row).join('')}</div>`;
+  if(via.length) h+=`<div class="sec"><h2>In vacanza</h2><span class="c">${via.length}</span></div><div class="list">${via.map(row).join('')}</div>`;
+  if(!via.length && !tornati.length) h+=`<div class="empty"><strong>Nessuno in vacanza</strong>Per mettere un paziente in vacanza tocca Aggiungi, oppure tocca il suo nome nel giro.</div>`;
+  return h;
+}
+function sheetVacanza(id){
+  const p=byId(id); if(!p) return;
+  const v=p.vacanza||{al:'',nota:''};
+  openSheet(`<h2>${v.dal?'Modifica vacanza':'Metti in vacanza'}</h2><p class="lead">${esc(p.nome)}, ${esc(p.localita)}. Finché è in vacanza non compare nel giro.</p>
+  <label class="field"><span>Rientro previsto, se lo sai</span><input type="date" id="v-al" value="${esc(v.al)}" min="${addDays(todayISO(),1)}"></label>
+  <p class="hint">Con la data di rientro, quel giorno ricompare da solo nel giro. Senza data resta qui finché non lo rimetti attivo tu.</p>
+  <label class="field"><span>Nota</span><input id="v-nota" value="${esc(v.nota)}" placeholder="es. dalla figlia a Genova" autocomplete="off"></label>
+  <button class="btn primary block" data-act="vacanza-ok" data-id="${p.id}">${v.dal?'Salva':'Metti in vacanza'}</button>
+  ${v.dal?`<div style="margin-top:10px"><button class="btn block" data-act="rientro" data-id="${p.id}">Rimetti attivo adesso</button></div>`:''}`);
+}
+function sheetRientro(id){
+  const p=byId(id); if(!p) return;
+  let T=todayISO(); if(wd(T)===0) T=addDays(T,1);
+  const gf=prossimoGiornoFisso(p,T), al=p.vacanza&&p.vacanza.al&&p.vacanza.al>T?p.vacanza.al:'';
+  const opts=[[T,'Nel giro di oggi'],[gf,'Nel suo giorno fisso'+(p.giorno?` (${p.giorno})`:'')]];
+  if(al && al!==T && al!==gf) opts.push([al,'Alla data di rientro']);
+  const seen=new Set();
+  openSheet(`<h2>Rimetti attivo</h2><p class="lead">${esc(p.nome)}, ${esc(p.localita)}. Da che giorno lo riprendi? Da lì riparte il suo ciclo di ${p.fg||'?'} giorni.</p>
+  <div class="acts">${opts.filter(([d])=>!seen.has(d)&&seen.add(d)).map(([d,l],i)=>`<button class="act${i===0?' go':''}" data-act="rientro-ok" data-id="${p.id}" data-d="${d}">${l} <small>${fmtShort(d)}</small></button>`).join('')}</div>
+  <label class="field" style="margin-top:16px"><span>Oppure un’altra data</span><input type="date" id="r-data" min="${todayISO()}"></label>
+  <button class="btn block" data-act="rientro-data" data-id="${p.id}">Riprendi da questa data</button>`);
+}
+function sheetVacanzaCerca(){
+  openSheet(`<h2>Metti in vacanza</h2><p class="lead">Cerca il paziente.</p><div class="field"><input id="vac-q" type="search" placeholder="Nome o località" autocomplete="off"></div><div id="vac-res" class="res"></div>`,()=>setTimeout(()=>{const i=$('#vac-q');i&&i.focus()},60));
+}
+function vacResHTML(q){
+  const n=normTxt(q); if(!n) return '';
+  const L=S.pazienti.filter(p=>!p.vacanza&&normTxt(p.nome+' '+p.localita).includes(n)).sort((a,b)=>a.nome.localeCompare(b.nome)).slice(0,40);
+  if(!L.length) return '<p class="hint" style="margin-top:10px">Nessun paziente attivo trovato.</p>';
+  return L.map(p=>`<div class="res-row"><div><div class="nome">${esc(p.nome)}</div><div class="meta">${esc(p.localita)}, CNT ${esc(p.cnt||'?')}. Prossima ${fmtShort(eff(p))}</div></div><button class="btn" data-act="vacanza" data-id="${p.id}">Scegli</button></div>`).join('');
+}
+
 function renderStorico(){
   let h=`<header class="page-h"><h1>Storico</h1><span class="sub">${S.storico.filter(x=>x.tipo==='consegna').length} consegne</span></header>`;
   h+=`<div class="search"><input id="st-q" type="search" placeholder="Cerca un paziente" value="${esc(ui.hq)}" autocomplete="off"></div>`;
@@ -714,8 +800,8 @@ function storicoListHTML(){
   let h='', last='';
   for(const x of L.slice(0,ui.hlim)){
     if(x.data!==last){h+=`<div class="hday">${fmtLong(x.data)}</div>`;last=x.data}
-    const tag = x.tipo==='consegna'?'<span class="tag ok">Consegnato</span>':x.tipo==='rinvio'?'<span class="tag rv">Rimandato</span>':x.tipo==='aggiunto'?'<span class="tag ag">Aggiunto</span>':'<span class="tag ag">Rinvio tolto</span>';
-    const det = x.tipo==='consegna'?`Prossima ${fmtShort(x.prossima)}`:`Al ${fmtShort(x.a)}`;
+    const tag = x.tipo==='consegna'?'<span class="tag ok">Consegnato</span>':x.tipo==='rinvio'?'<span class="tag rv">Rimandato</span>':x.tipo==='aggiunto'?'<span class="tag ag">Aggiunto</span>':x.tipo==='vacanza'?'<span class="tag vc">In vacanza</span>':x.tipo==='rientro'?'<span class="tag vc">Rientrato</span>':'<span class="tag ag">Rinvio tolto</span>';
+    const det = x.tipo==='consegna'?`Prossima ${fmtShort(x.prossima)}`:x.tipo==='vacanza'?(x.a?`Rientro previsto ${fmtShort(x.a)}`:'Rientro non fissato'):x.tipo==='rientro'?`Di nuovo nel giro dal ${fmtShort(x.a)}`:`Al ${fmtShort(x.a)}`;
     h+=`<div class="hrow"><div class="row-main"><span class="nome">${esc(x.nome)}</span><span class="meta">${tag}${esc(x.localita)}. ${det}</span>${canUndo(x)?`<button class="undo-btn" data-act="annulla" data-hid="${x.id}">Annulla</button>`:''}</div>${cntBadge(x.cnt,true)}</div>`;
   }
   if(L.length>ui.hlim) h+=`<button class="more" data-act="piu-storico">Mostra altri</button>`;
@@ -739,7 +825,7 @@ function renderAltro(){
   <div class="card"><h3>Svuota archivio</h3><p>Cancella tutti i pazienti da questo telefono.</p><button class="btn danger" data-act="svuota">Svuota archivio</button></div>
   <div class="card"><h3>Come calcola le date</h3>
     <p>Prossima visita = ultima + F.G. Una consegna fatta in un altro giorno della settimana non sposta il ciclo. Se consegni in anticipo nel giorno fisso, il ciclo riparte da quel giorno. Chi è in ritardo resta in cima al giro, in rosso, finché non viene consegnato o rimandato.</p>
-    <p>Rimanda a domani sposta solo questa visita di un giorno, alla prossima settimana di sette: il ciclo resta quello di prima. Per cambiare il giorno fisso per sempre, modificalo nella scheda del paziente.</p></div>`;
+    <p>Rimanda a domani sposta solo questa visita di un giorno, alla prossima settimana di sette, oppure puoi scegliere un giorno preciso: il ciclo resta quello di prima. Per cambiare il giorno fisso per sempre, modificalo nella scheda del paziente.</p></div>`;
 }
 
 /* ---------- sheet e toast ---------- */
@@ -769,7 +855,12 @@ function sheetAzioni(id){
     <button class="act go" data-act="consegna" data-id="${p.id}">Consegnato <small>${next?`prossima ${fmtShort(next)}`:''}</small></button>
     <button class="act rv" data-act="rimanda" data-n="1" data-id="${p.id}">Rimanda a domani <small>${fmtShort(d1)}</small></button>
     <button class="act rv" data-act="rimanda" data-n="7" data-id="${p.id}">Rimanda alla prossima settimana <small>${fmtShort(d7)}</small></button>
+    <div style="border:1.5px solid var(--later);border-radius:14px;padding:12px 14px">
+      <label class="field" style="margin:0 0 10px"><span style="color:var(--later)">Rimanda a un giorno preciso</span><input type="date" id="rim-data" min="${todayISO()}" value="${d1}"></label>
+      <button class="btn block" style="border-color:var(--later);color:var(--later)" data-act="rimanda-data" data-id="${p.id}">Rimanda a questa data</button>
+    </div>
     ${p.spostata?`<button class="act" data-act="togli-rinvio" data-id="${p.id}">Togli rinvio <small>ciclo ${fmtShort(p.prossima)}</small></button>`:''}
+    <button class="act" data-act="vacanza" data-id="${p.id}">${p.vacanza?'Modifica vacanza':'Metti in vacanza'}</button>
     <button class="act" data-act="scheda" data-id="${p.id}">Apri scheda</button>
   </div>`);
 }
@@ -835,11 +926,12 @@ function sheetScheda(id,opts={}){
     <label class="field"><span>Ultima visita</span><input id="f-ult" type="date" value="${esc(v.ultima)}"></label>
     <label class="field"><span>Prossima visita</span><input id="f-pro" type="date" value="${esc(v.prossima)}"></label>
   </div>
+  ${p&&p.vacanza?`<div class="warnbox">In vacanza dal ${fmtShort(p.vacanza.dal)}${p.vacanza.al?`, rientro ${fmtShort(p.vacanza.al)}`:''}. <button class="undo-btn" data-act="rientro" data-id="${p.id}">Rimetti attivo</button></div>`:(p?`<div style="margin:0 0 12px"><button class="btn" data-act="vacanza" data-id="${p.id}">Metti in vacanza</button></div>`:'')}
   ${p&&p.spostata?`<div class="warnbox">${p.spostata.motivo==='rinvio'?'Rimandato':'Aggiunto al giro'}: da fare ${fmtShort(p.spostata.data)}. Il ciclo resta sulla prossima visita qui sopra. <button class="undo-btn" data-act="togli-rinvio" data-id="${p.id}">Togli</button></div>`:''}
   <label class="field"><span>Note</span><textarea id="f-note">${esc(v.note)}</textarea></label>
   <div id="f-err"></div>
   <button class="btn primary block" data-act="salva" data-id="${p?p.id:''}" data-giro="${opts.giro?1:''}">${isNew?(opts.giro?'Crea e metti nel giro':'Crea paziente'):'Salva modifiche'}</button>
-  ${hist.length?`<h3 style="font:600 20px/1.2 var(--f-cond);margin:20px 0 4px">Ultime operazioni</h3><div class="res">${hist.map(x=>`<div class="res-row"><div class="meta">${fmtShort(x.data)}: ${x.tipo==='consegna'?'consegnato':x.tipo==='rinvio'?'rimandato al '+fmtShort(x.a):x.tipo==='aggiunto'?'aggiunto al giro':'rinvio tolto'}</div></div>`).join('')}</div>`:''}
+  ${hist.length?`<h3 style="font:600 20px/1.2 var(--f-cond);margin:20px 0 4px">Ultime operazioni</h3><div class="res">${hist.map(x=>`<div class="res-row"><div class="meta">${fmtShort(x.data)}: ${x.tipo==='consegna'?'consegnato':x.tipo==='rinvio'?'rimandato al '+fmtShort(x.a):x.tipo==='aggiunto'?'aggiunto al giro':x.tipo==='vacanza'?'messo in vacanza':x.tipo==='rientro'?'rientrato, giro dal '+fmtShort(x.a):'rinvio tolto'}</div></div>`).join('')}</div>`:''}
   ${p?`<div style="margin-top:18px"><button class="btn danger block" data-act="elimina" data-id="${p.id}">Elimina paziente</button></div>`:''}`,
   ()=>{
     const orig=v.giorno;
@@ -1012,9 +1104,9 @@ async function saveFile(name,data,mime){
 }
 function csvField(v){const s=String(v ?? '');return /[",;\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function exportCSV(){
-  const H=['NOME','LOCALITA','CNT','FG','GIORNO_FISSO','ULTIMA_VISITA','PROSSIMA_VISITA','RINVIO','NOTE'];
+  const H=['NOME','LOCALITA','CNT','FG','GIORNO_FISSO','ULTIMA_VISITA','PROSSIMA_VISITA','RINVIO','NOTE','VACANZA_DAL','VACANZA_AL'];
   const L=[...S.pazienti].sort((a,b)=>a.nome.localeCompare(b.nome));
-  const rows=L.map(p=>[p.nome,p.localita,p.cnt,p.fg||'',p.giorno,p.ultima,p.prossima,p.spostata?p.spostata.data:'',p.note].map(csvField).join(','));
+  const rows=L.map(p=>[p.nome,p.localita,p.cnt,p.fg||'',p.giorno,p.ultima,p.prossima,p.spostata?p.spostata.data:'',p.note,p.vacanza?p.vacanza.dal:'',p.vacanza?p.vacanza.al:''].map(csvField).join(','));
   saveFile(`Pazienti_${todayISO()}.csv`,'\ufeff'+[H.join(','),...rows].join('\r\n'),'text/csv').then(ok=>ok&&toast('CSV pazienti pronto.'));
 }
 function backup(){
@@ -1042,7 +1134,9 @@ const CAMPI=[
   ['ultima','Ultima visita',['ultima','ultima visita','ultima consegna','data ultima','ultimo']],
   ['prossima','Prossima visita',['prossima','prossima visita','prossima consegna','data prossima']],
   ['rinvio','Rinvio',['rinvio','rimandato','rimanda']],
-  ['note','Note',['note','nota','annotazioni','indicazioni']]
+  ['note','Note',['note','nota','annotazioni','indicazioni']],
+  ['vacanza_dal','In vacanza dal',['vacanza dal','in vacanza dal','vacanza']],
+  ['vacanza_al','Rientro dalla vacanza',['vacanza al','rientro','rientro vacanza']]
 ];
 function normH(s){return normTxt(s).toLowerCase()}
 function parseCSV(text){
@@ -1136,6 +1230,7 @@ function eseguiImport(){
       if(ex){
         for(const k of ['cnt','fg','giorno','ultima','prossima','note']) if(r[k]) ex[k]=r[k];
         if(r.spostata) ex.spostata=r.spostata;
+        if(r.vacanza) ex.vacanza=r.vacanza;
         agg++;
       } else { S.pazienti.push(r); m.set(key(r),r); nuovi++; }
     }
@@ -1161,6 +1256,7 @@ const A={
   consegna:b=>consegna(b.dataset.id),
   azioni:b=>sheetAzioni(b.dataset.id),
   rimanda:b=>rimanda(b.dataset.id,+b.dataset.n),
+  'rimanda-data':b=>{const d=$('#rim-data').value;if(!validISO(d)){toast('Scegli una data.');return}if(d<todayISO()){toast('La data non può essere già passata.');return}const p=byId(b.dataset.id);if(p&&d===eff(p)){toast(`È già previsto per ${fmtShort(d)}.`);return}if(wd(d)===0&&!confirm('È una domenica. Rimandare lo stesso?'))return;rimanda(b.dataset.id,0,d)},
   'togli-rinvio':b=>togliRinvio(b.dataset.id),
   annulla:b=>annulla(b.dataset.hid),
   'toast-undo':()=>{const f=toastUndo;$('#toast').hidden=true;toastUndo=null;f&&f()},
@@ -1181,6 +1277,12 @@ const A={
   hfiltro:b=>{ui.hf=b.dataset.f;ui.hlim=200;render()},
   'piu-storico':()=>{ui.hlim+=200;$('#st-list').innerHTML=storicoListHTML()},
   foglio:()=>sheetFoglio(),
+  vacanza:b=>sheetVacanza(b.dataset.id),
+  'vacanza-cerca':()=>sheetVacanzaCerca(),
+  'vacanza-ok':b=>{const al=$('#v-al').value;if(al&&al<=todayISO()){toast('Il rientro deve essere da domani in poi.');return}mettiInVacanza(b.dataset.id,validISO(al)?al:'',$('#v-nota').value.trim())},
+  rientro:b=>sheetRientro(b.dataset.id),
+  'rientro-ok':b=>rimettiAttivo(b.dataset.id,b.dataset.d),
+  'rientro-data':b=>{const d=$('#r-data').value;if(!validISO(d)){toast('Scegli una data.');return}rimettiAttivo(b.dataset.id,d)},
   'gia-fatti':()=>sheetGiaFatti(),
   'gia-fatti-ok':()=>giaFattiOk(),
   stampa:()=>stampa(),
@@ -1205,6 +1307,7 @@ document.addEventListener('input',e=>{
   if(t.id==='paz-q'){ui.q=t.value;$('#paz-list').innerHTML=pazListHTML()}
   else if(t.id==='st-q'){ui.hq=t.value;$('#st-list').innerHTML=storicoListHTML()}
   else if(t.id==='add-q'){$('#add-res').innerHTML=addResHTML(t.value)}
+  else if(t.id==='vac-q'){$('#vac-res').innerHTML=vacResHTML(t.value)}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet-root').hidden) closeSheet()});
 $('#pick-day').addEventListener('change',e=>{if(validISO(e.target.value)){ui.day=e.target.value;ui.follow=ui.day===todayISO();ui.tab='giro';render()}});
