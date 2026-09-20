@@ -278,6 +278,12 @@ body.altrui .top{top:calc(env(safe-area-inset-top,0px) + 44px)}
 .corr-bar{display:flex;justify-content:center;margin:0 0 4px}
 .corr-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.18);color:#fff;border-radius:999px;padding:5px 14px;font-weight:600;font-size:14px}
 .corr-btn svg{width:18px;height:18px}
+.wd-in{display:flex;align-items:center;justify-content:center;gap:4px}
+.wd-dt{display:block}
+.wd .wx{display:flex;flex-direction:column;align-items:center;line-height:1}
+.wd .wx i{font-style:normal;font-size:15px}
+.wd .wx b{font:600 11px/1.2 var(--f-body);opacity:.95}
+@media (max-width:399px){.wd-in{gap:2px}.wd .wx i{font-size:13px}.wd .wx b{font-size:10px}.wd .d1{font-size:11px}}
 #print-area{display:none}
 @media print{
   body > *:not(#print-area){display:none !important}
@@ -509,13 +515,103 @@ function applicaCorrezioni(st){
   return fatte;
 }
 
+/* ---------- meteo (Open-Meteo, senza chiavi) ---------- */
+const METEO_KEY='medicair.meteo';
+const POS_KEY='medicair.meteoPos';
+let METEO_POS={lat:44.22, lon:9.95, nome:'Aulla'};
+(function(){try{const p=JSON.parse(lsGet(POS_KEY)||'null'); if(p&&p.lat&&p.lon) METEO_POS=p;}catch(e){}})();
+let meteo={};
+function iconaMeteo(c){
+  if(c===0) return '☀️';
+  if(c===1||c===2) return '🌤️';
+  if(c===3) return '☁️';
+  if(c===45||c===48) return '🌫️';
+  if(c>=51&&c<=57) return '🌦️';
+  if(c>=61&&c<=65) return '🌧️';
+  if(c>=66&&c<=67) return '🌧️';
+  if(c>=71&&c<=77) return '🌨️';
+  if(c>=80&&c<=82) return '🌦️';
+  if(c===85||c===86) return '🌨️';
+  if(c>=95) return '⛈️';
+  return '';
+}
+function descMeteo(c){
+  if(c===0) return 'sereno';
+  if(c===1||c===2) return 'poco nuvoloso';
+  if(c===3) return 'nuvoloso';
+  if(c===45||c===48) return 'nebbia';
+  if(c>=51&&c<=57) return 'pioviggine';
+  if((c>=61&&c<=67)||(c>=80&&c<=82)) return 'pioggia';
+  if((c>=71&&c<=77)||c===85||c===86) return 'neve';
+  if(c>=95) return 'temporale';
+  return '';
+}
+function caricaMeteoLocale(){ try{const d=JSON.parse(lsGet(METEO_KEY)||'null'); if(d&&d.giorni) meteo=d.giorni;}catch(e){} }
+async function caricaMeteo(forza){
+  try{
+    let vecchio=null; try{vecchio=JSON.parse(lsGet(METEO_KEY)||'null')}catch(e){}
+    if(vecchio&&vecchio.giorni){ meteo=vecchio.giorni; if(!forza && vecchio.pos===METEO_POS.nome && Date.now()-(vecchio.ts||0)<2*3600*1000) return; }
+    if(!navigator.onLine) return;
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${METEO_POS.lat}&longitude=${METEO_POS.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FRome&forecast_days=10`;
+    const r=await conTimeout(fetch(u),8000);
+    if(!r||!r.ok) return;
+    const j=await r.json();
+    const g={};
+    (j.daily&&j.daily.time||[]).forEach((d,i)=>{ g[d]={c:j.daily.weather_code[i], max:Math.round(j.daily.temperature_2m_max[i]), min:Math.round(j.daily.temperature_2m_min[i])}; });
+    if(Object.keys(g).length){ meteo=g; lsSet(METEO_KEY,JSON.stringify({ts:Date.now(),pos:METEO_POS.nome,giorni:g})); if(ui.tab==='giro'&&!$('#splash')) render(); }
+  }catch(e){}
+}
+
+function sheetMeteo(msg){
+  openSheet(`<h2>Zona del meteo</h2><p class="lead">Adesso le previsioni sono di <strong>${esc(METEO_POS.nome)}</strong>. Cerca il paese che ti interessa.</p>
+  <div class="field"><input id="mt-q" type="search" placeholder="Es. Fivizzano, Pontremoli, Zeri" autocomplete="off"></div>
+  <div id="mt-res" class="res">${msg?`<div class="hint" style="padding-top:10px">${esc(msg)}</div>`:''}</div>
+  <div style="margin-top:14px"><button class="btn block" data-act="meteo-gps">Usa la mia posizione</button></div>`,
+  ()=>setTimeout(()=>{const i=$('#mt-q');i&&i.focus()},60));
+}
+let mtT=null;
+function cercaZona(q){
+  clearTimeout(mtT);
+  const box=$('#mt-res'); if(!box) return;
+  if(q.trim().length<3){box.innerHTML='';return}
+  box.innerHTML='<div class="hint" style="padding-top:10px">Cerco…</div>';
+  mtT=setTimeout(async()=>{
+    try{
+      const r=await conTimeout(fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=8&language=it`),8000);
+      if(!r||!r.ok) throw new Error('rete');
+      const j=await r.json(); const L=j.results||[];
+      if(!L.length){box.innerHTML='<div class="hint" style="padding-top:10px">Nessun paese trovato. Prova a scrivere il nome per intero.</div>';return}
+      box.innerHTML=L.map(x=>`<div class="res-row"><div><div class="nome">${esc(x.name)}</div><div class="meta">${esc([x.admin2,x.admin1,x.country].filter(Boolean).join(', '))}</div></div><button class="btn primary" data-act="meteo-scegli" data-lat="${x.latitude}" data-lon="${x.longitude}" data-nome="${esc(x.name)}">Scegli</button></div>`).join('');
+    }catch(e){ box.innerHTML='<div class="hint" style="padding-top:10px">Non riesco a cercare: serve internet.</div>'; }
+  },400);
+}
+function impostaZona(lat,lon,nome){
+  METEO_POS={lat:+lat,lon:+lon,nome};
+  lsSet(POS_KEY,JSON.stringify(METEO_POS));
+  meteo={}; closeSheet(); render();
+  caricaMeteo(true).then(()=>{render(); toast(Object.keys(meteo).length?`Meteo di ${nome}.`:`Zona impostata su ${nome}. Le previsioni arrivano appena c’è internet.`)});
+}
+function zonaGPS(){
+  if(!navigator.geolocation){toast('Questo telefono non dà la posizione.');return}
+  toast('Cerco la posizione…');
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude:la,longitude:lo}=pos.coords;
+    let nome='La mia posizione';
+    try{
+      const r=await conTimeout(fetch(`https://geocoding-api.open-meteo.com/v1/search?name=&latitude=${la}&longitude=${lo}&count=1&language=it`),6000);
+      if(r&&r.ok){const j=await r.json(); if(j.results&&j.results[0]) nome=j.results[0].name;}
+    }catch(e){}
+    impostaZona(la,lo,nome);
+  },()=>{toast('Posizione non disponibile: cerca il paese a mano.')},{timeout:8000,maximumAge:600000});
+}
+
 /* ---------- account e sincronizzazione (Supabase) ---------- */
 const CFG = (typeof window!=='undefined' && window.MEDICAIR_CONFIG) || {};
 const CLOUD = PWA && !!(CFG.supabaseUrl && CFG.supabaseKey && !/INSERISCI/i.test(CFG.supabaseUrl+CFG.supabaseKey));
 let proponiRecupero=false;
 let sb=null, utente=null, vista=null, statoSync='locale', ultimaSync=0, invioT=null, inInvio=false, invioAncora=false, serveLogin=false;
 const UKEY='medicair.ultimoUtente';
-let erroreSync='';
+let erroreSync='', senzaEmail=false;
 function segnaErrore(e){
   const m=String((e&&(e.message||e.code))||e||'');
   erroreSync=m;
@@ -604,8 +700,16 @@ async function invia(){
   const chi=vista||utente, S0=S, K0=KEY;
   const rev=S0._rev||Date.now(), t=new Date(rev).toISOString();
   try{
-    let r=await conTimeout(c.from('stato').upsert({user_id:chi.id,email:chi.email||null,dati:statoPerCloud(S0),aggiornato:t}),15000);
-    if(!r) throw new Error('timeout'); if(r.error) throw r.error;
+    const riga=()=>senzaEmail?{user_id:chi.id,dati:statoPerCloud(S0),aggiornato:t}:{user_id:chi.id,email:chi.email||null,dati:statoPerCloud(S0),aggiornato:t};
+    let r=await conTimeout(c.from('stato').upsert(riga()),15000);
+    if(!r) throw new Error('timeout');
+    if(r.error && /'email' column|column .*email/i.test(String(r.error.message||''))){
+      // il database non ha ancora la colonna email: salvo lo stesso
+      senzaEmail=true;
+      r=await conTimeout(c.from('stato').upsert(riga()),15000);
+      if(!r) throw new Error('timeout');
+    }
+    if(r.error) throw r.error;
     const hashes={}, righe=[];
     for(const [k,v] of mesiStorico(S0.storico)){const h=hashStr(JSON.stringify(v));hashes[k]=h;if(!S0._hashMesi||S0._hashMesi[k]!==h) righe.push({user_id:chi.id,mese:k,voci:v,aggiornato:t})}
     for(const k in (S0._hashMesi||{})) if(!(k in hashes)) righe.push({user_id:chi.id,mese:k,voci:[],aggiornato:t});
@@ -682,7 +786,7 @@ async function sheetCorrieri(){
   const c=clientCloud(); const T=todayISO(), mese=T.slice(0,7);
   try{
     const [st,sm]=await Promise.all([
-      conTimeout(c.from('stato').select('user_id,email,dati,aggiornato'),15000),
+      conTimeout(c.from('stato').select(senzaEmail?'user_id,dati,aggiornato':'user_id,email,dati,aggiornato'),15000),
       conTimeout(c.from('storico_mesi').select('user_id,mese,voci').eq('mese',mese),15000)
     ]);
     if(!st||st.error||!sm||sm.error) throw new Error('errore');
@@ -1123,7 +1227,7 @@ function renderGiro(){
       </div>
       <button class="icon-btn" data-act="giorno" data-n="1" aria-label="Giorno successivo">›</button>
     </div>
-    <div class="week">${days.map(x=>`<button class="wd${x.d===D?' sel':''}${x.d===T?' today':''}${x.late?' has-late':''}" data-act="vai" data-d="${x.d}" aria-label="${fmtLong(x.d)}"><span class="d1">${GB[wd(x.d)]}</span><span class="d2">${dm(x.d).d}</span></button>`).join('')}</div>
+    <div class="week">${days.map(x=>`<button class="wd${x.d===D?' sel':''}${x.d===T?' today':''}${x.late?' has-late':''}" data-act="vai" data-d="${x.d}" aria-label="${fmtLong(x.d)}${meteo[x.d]?', '+descMeteo(meteo[x.d].c)+', massima '+meteo[x.d].max+' gradi':''}"><span class="wd-in"><span class="wd-dt"><span class="d1">${GB[wd(x.d)]}</span><span class="d2">${dm(x.d).d}</span></span>${meteo[x.d]?`<span class="wx"><i>${iconaMeteo(meteo[x.d].c)}</i><b>${meteo[x.d].max}°</b></span>`:''}</span></button>`).join('')}</div>
   </header>`;
   h+=`<div class="stats">
     <div class="stat"><b>${pend.length}</b><span>da fare</span></div>
@@ -1353,6 +1457,7 @@ function renderAltro(){
   return `<header class="page-h"><h1>Altro</h1><span class="sub">Medic Air</span></header>${storageWarn()}
   ${CLOUD?(utente?`<div class="card"><h3>Il tuo account</h3><p>${esc(utente.email)}${utente.admin?' (responsabile)':''}${inVistaAltrui()?`<br>Stai lavorando sul giro di ${esc(vista.email)}`:''}<br><span data-sync>${esc(testoSync())}</span></p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="recupero">Recupera dati</button><button class="btn danger" data-act="esci">Esci</button></div>`:''):(PWA?`<div class="card"><h3>Account online</h3><p>Non ancora collegato: i dati restano solo su questo telefono.</p></div>`:'')}
   ${inst}
+  <div class="card"><h3>Meteo</h3><p>Previsioni di <strong>${esc(METEO_POS.nome)}</strong>, mostrate nella striscia dei giorni.${meteo[todayISO()]?` Oggi ${iconaMeteo(meteo[todayISO()].c)} ${descMeteo(meteo[todayISO()].c)}, ${meteo[todayISO()].min}° / ${meteo[todayISO()].max}°.`:''}</p><button class="btn" data-act="meteo">Cambia zona</button></div>
   <div class="card"><h3>Foglio del giro</h3><p>Il foglio di ${fmtShort(ui.day)} in una pagina, con il quadratino V, righe vuote in fondo e il riepilogo bombole.</p><button class="btn" data-act="foglio">Apri foglio</button></div>
   <div class="card"><h3>Backup</h3><p>I dati restano su questo telefono. Scarica un backup ogni tanto e tienilo al sicuro: serve anche per spostare tutto su un altro telefono.</p>
     <button class="btn primary" data-act="backup">Scarica backup</button><button class="btn" data-act="ripristina">Ripristina da backup</button><button class="btn" data-act="export-csv">Esporta pazienti in CSV</button></div>
@@ -1859,6 +1964,9 @@ const A={
   hfiltro:b=>{ui.hf=b.dataset.f;ui.hlim=200;render()},
   'piu-storico':()=>{ui.hlim+=200;$('#st-list').innerHTML=storicoListHTML()},
   foglio:()=>sheetFoglio(),
+  meteo:()=>sheetMeteo(),
+  'meteo-scegli':b=>impostaZona(b.dataset.lat,b.dataset.lon,b.dataset.nome),
+  'meteo-gps':()=>zonaGPS(),
   'esci-forza':()=>esci(true),
   recupero:()=>sheetRecupero(false),
   recupera:b=>recupera(b.dataset.k),
@@ -1913,12 +2021,13 @@ document.addEventListener('input',e=>{
   else if(t.id==='add-q'){$('#add-res').innerHTML=addResHTML(t.value)}
   else if(t.id==='vac-q'){$('#vac-res').innerHTML=vacResHTML(t.value)}
   else if(t.id==='rs-q'){$('#rs-res').innerHTML=resoResHTML(t.value)}
+  else if(t.id==='mt-q'){cercaZona(t.value)}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet-root').hidden) closeSheet()});
 $('#pick-day').addEventListener('change',e=>{if(validISO(e.target.value)){ui.day=e.target.value;ui.follow=ui.day===todayISO();ui.tab='giro';render()}});
 $('#file-import').addEventListener('change',e=>{const f=e.target.files[0];if(f) leggiImport(f)});
 $('#file-backup').addEventListener('change',e=>{const f=e.target.files[0];if(f) ripristina(f)});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&CLOUD&&utente&&S._dirty){invia()} if(document.visibilityState==='visible'){ if(CLOUD&&utente&&navigator.onLine&&!$('#splash')) scarica().then(()=>render());if(ui.follow&&ui.day!==todayISO()) ui.day=todayISO();render()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&CLOUD&&utente&&S._dirty){invia()} if(document.visibilityState==='visible'){ caricaMeteo(); if(CLOUD&&utente&&navigator.onLine&&!$('#splash')) scarica().then(()=>render());if(ui.follow&&ui.day!==todayISO()) ui.day=todayISO();render()}});
 window.addEventListener('storage',e=>{if(e.key===KEY){S=load();render()}});
 window.addEventListener('online',async()=>{ if(!CLOUD) return; if(!utente){return} const c=clientCloud(); if(c){ try{await c.auth.getSession()}catch(e){} } await scarica(); render(); });
 window.addEventListener('offline',()=>{ if(CLOUD&&utente){statoSync='offline';aggiornaSyncUI()} });
@@ -1944,6 +2053,7 @@ async function controllaAggiornamentoApp(){
   if(LOGO.startsWith('data:')) $('#splash-logo').src=LOGO; else $('#splash-logo').remove();
   const lbl=$('#splash-lbl'), ver=$('#splash-ver');
   ver.textContent='Versione '+versioneApp;
+  caricaMeteoLocale();
   const msg=['Caricamento…','Carico i pazienti…','Preparo il giro…','Quasi pronto…'];
   let i=0, upd=null;
   let fissa=false;
@@ -1958,6 +2068,7 @@ async function controllaAggiornamentoApp(){
       versioneApp=v; ver.textContent='Versione '+v;
     }
     await controllaAggiornamentoApp();
+    caricaMeteo();
     if(CLOUD){ if(!upd){fissa=true;lbl.textContent='Collegamento al tuo account…';} await initCloud(); }
   })();
   await Promise.all([minimo,lavoro]);
