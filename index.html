@@ -910,7 +910,7 @@ function consegna(id){
   if(p.vacanza){p.prossima='';}
   const next=calcNext(p,d);
   p.ultima=d; p.prossima=next; p.spostata=null; p.vacanza=null;
-  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:d, prossima:next, prima});
+  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:d, giro:ui.day, prossima:next, prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
   toast(next ? `${p.nome}: consegnato. Prossima ${fmtShort(next)}.` : `${p.nome}: consegnato. Manca la F.G.: imposta la prossima visita nella scheda.`, ()=>annulla(hid));
@@ -981,7 +981,7 @@ function ritirato(id){
   const p=byId(id); if(!p||!p.reso) return;
   const prima=snap(p), d=dataOperazione(ui.tab==='giro'?ui.day:todayISO());
   p.reso={...p.reso, ritirato:d};
-  logOp({tipo:'ritirato', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.reso.cnt, data:d, prima});
+  logOp({tipo:'ritirato', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.reso.cnt, data:d, giro:ui.tab==='giro'?ui.day:todayISO(), prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
   toast(`${p.nome}: reso ritirato.`,()=>annulla(hid));
@@ -1025,7 +1025,7 @@ function consegnaExtra(id){
   const prima=snap(p);
   if(p.extra){p.extra=p.extra.filter(x=>x!==D); if(!p.extra.length) delete p.extra;}
   if(!p.ultima || d>p.ultima) p.ultima=d;
-  logOp({tipo:'consegna', extra:true, pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:d, prossima:eff(p), prima});
+  logOp({tipo:'consegna', extra:true, pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:d, giro:D, prossima:eff(p), prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
   toast(`${p.nome}: consegna extra fatta. Il suo giro resta ${fmtShort(eff(p))}.`,()=>annulla(hid));
@@ -1058,7 +1058,7 @@ function giroDi(D){
     else if(isExtra(p,D)) extra.push(p);
   }
   arretrati.sort((a,b)=>eff(a).localeCompare(eff(b))||a.nome.localeCompare(b.nome));
-  const fatti=S.storico.filter(h=>(h.tipo==='consegna'||h.tipo==='ritirato') && h.data===D);
+  const fatti=S.storico.filter(h=>(h.tipo==='consegna'||h.tipo==='ritirato') && (h.giro||h.data)===D);
   resi.sort((a,b)=>a.reso.ritiro.localeCompare(b.reso.ritiro)||a.nome.localeCompare(b.nome));
   return {arretrati, delGiorno, senzaData, fatti, extra, resi};
 }
