@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Medic Air</title>
 <meta name="theme-color" content="#0A7CC1">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <link rel="manifest" href="manifest.webmanifest?v=15">
 <link rel="icon" href="medicair-logo-192.png">
 <link rel="apple-touch-icon" href="medicair-logo-192.png">
@@ -224,7 +226,7 @@ table.carico tr.tot td{border-bottom:0;font-weight:700}
   .row{grid-template-columns:50px minmax(0,1fr) auto minmax(0,1fr) auto}
   .row > .loc{grid-column:3;max-width:220px;font-size:22px}
   .row > .loc.long{font-size:22px}
-  .row > .cnt{grid-column:5}
+  .row > .cnt,.row > .badges{grid-column:5}
 }
 .row .loc{text-align:center;font:700 20px/1.05 var(--f-cond);text-transform:uppercase;letter-spacing:.01em;color:var(--ink);max-width:132px;overflow-wrap:normal;word-break:normal;padding:0 2px}
 .row .loc.long{font-size:18px}
@@ -245,6 +247,31 @@ table.carico tr.tot td{border-bottom:0;font-weight:700}
 .credit .ver{display:block;margin-top:3px;font-size:12px;opacity:.85}
 .splash .lbl{font:500 15px var(--f-body);color:#526477;min-height:20px}
 .splash .credit{position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom,0px));color:#7A8C9D}
+.login{position:fixed;inset:0;z-index:90;background:var(--bg);overflow:auto;display:flex;justify-content:center;padding:calc(30px + env(safe-area-inset-top,0px)) 18px calc(30px + env(safe-area-inset-bottom,0px))}
+.login-in{width:100%;max-width:400px;margin:auto 0}
+.login-in img{display:block;height:54px;margin:0 auto 22px;background:#fff;border-radius:12px;padding:8px 14px;box-sizing:content-box}
+.login-in h1{text-align:center;font:600 34px var(--f-cond);color:var(--oxy)}
+.login-in h2{margin:0 0 16px;font:600 30px/1 var(--f-cond);text-align:center}
+.login-in .credit{padding-top:34px}
+.badges{display:flex;align-items:center;gap:5px}
+.fgb{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:40px;padding:3px 5px 4px;border:2px solid var(--muted);border-top-width:5px;border-radius:11px 11px 6px 6px;background:var(--surface);line-height:1;color:var(--ink)}
+.fgb small{font:700 9.5px/1 var(--f-body);color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
+.fgb b{font:700 19px/1 var(--f-cond)}
+.row.done .fgb{opacity:.55}
+.cnt.gas{border-color:#C2410C;color:#C2410C}
+:root[data-theme="dark"] .cnt.gas{border-color:#FB923C;color:#FB923C}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cnt.gas{border-color:#FB923C;color:#FB923C}}
+.badge.or{background:#E07A00}
+.gasrow{display:flex;gap:10px;flex-wrap:wrap}
+.stepper{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:12px;padding:6px 8px;background:var(--surface2)}
+.stepper b{font:700 18px var(--f-cond);color:#C2410C;margin-right:4px}
+.stepper button{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);font:700 22px/1 var(--f-body)}
+.stepper output{min-width:24px;text-align:center;font:700 20px var(--f-cond)}
+.gasm{color:#C2410C;font-weight:700}
+:root[data-theme="dark"] .gasm{color:#FB923C}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .gasm{color:#FB923C}}
+.row .row-main{min-width:88px}
+@media (max-width:559px){.row{gap:4px;padding-right:8px}.row .loc{max-width:104px;font-size:18px}.row .loc.long{font-size:15.5px}.badges{flex-direction:column;align-items:stretch;gap:3px}.fgb{flex-direction:row;gap:3px;padding:1px 6px 2px;border-width:1.5px;border-top-width:1.5px;border-radius:7px;min-width:0}.fgb small{margin:0;font-size:9px}.fgb b{font-size:15px}}
 #print-area{display:none}
 @media print{
   body > *:not(#print-area){display:none !important}
@@ -282,12 +309,14 @@ const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAk4AAACWCAIAAACnyZDJ
 const VERSIONE_BASE = '1.0';
 const VKEY = 'medicair.versione';
 let versioneApp = (()=>{try{return localStorage.getItem(VKEY)||VERSIONE_BASE}catch(e){return VERSIONE_BASE}})();
-const KEY = 'giroOssigeno.v1';
+const KEY_LOCALE = 'giroOssigeno.v1';
+let KEY = KEY_LOCALE;
 const GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 const GB = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 const MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 const MB = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
-const ORDINE_CNT = ['26','31','31T','41','47'];
+const ORDINE_CNT = ['26','31','31T','41','46','47'];
+const TIPI_GAS = ['3000','6000'];
 const KNOWN_DISTINCT = {};
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
@@ -354,11 +383,18 @@ function fromRow(r){
   const vd = parseDateAny(r.vacanza_dal ?? r.VACANZA_DAL), va = parseDateAny(r.vacanza_al ?? r.VACANZA_AL);
   if(vd || va) p.vacanza = {dal:vd||todayISO(), al:va||'', nota:''};
   p.gruppo = gruppoDa(r.gruppo ?? r.GRUPPO, p.note);
+  { const g=gasDa(r.gassosi ?? r.GASSOSI); if(g) p.gas=g; }
   const rd=parseDateAny(r.reso_dal ?? r.RESO_DAL), rr=parseDateAny(r.reso_ritiro ?? r.RESO_RITIRO), rt=parseDateAny(r.reso_ritirato ?? r.RESO_RITIRATO);
   if(rd||rr||rt){ p.reso={dal:rd||todayISO(), ritiro:rr||'', ritirato:rt||'', cnt:p.cnt, nota:''}; p.vacanza=null; }
   if(!p.giorno && p.prossima) p.giorno = GIORNI[wd(p.prossima)];
   return p;
 }
+function gasDa(v){
+  const g={}; const t=String(v??'').toUpperCase();
+  for(const m of t.matchAll(/(?:(\d+)\s*[X×*]\s*)?(3000|6000)/g)){ g[m[2]]=(g[m[2]]||0)+(+(m[1]||1)); }
+  return Object.keys(g).length?g:null;
+}
+function gasTesto(g,sep){ if(!g) return ''; return TIPI_GAS.filter(t=>g[t]).map(t=>`${g[t]}${sep||'×'}${t}`).join(' + '); }
 function gruppoDa(g,note){
   const t=String(g ?? '').trim();
   if(t) return cap(t.toLowerCase());
@@ -410,11 +446,16 @@ function load(){
   }catch(e){ storageOK = false; }
   return seedState();
 }
+function scriviLocale(){
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
+  catch(e){ storageOK = false; }
+}
 function save(){
   // tiene lo stato per l'annullamento solo sulle 400 operazioni più recenti
   for(let i=400;i<S.storico.length;i++) if(S.storico[i].prima) delete S.storico[i].prima;
-  try{ localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; }
-  catch(e){ storageOK = false; }
+  if(CLOUD && utente){ S._rev=Date.now(); S._dirty=true; }
+  scriviLocale();
+  if(CLOUD && utente) programmaInvio();
 }
 function byId(id){return S.pazienti.find(p=>p.id===id)}
 function eff(p){if(p.reso) return p.reso.ritirato?'':(p.reso.ritiro||''); if(p.spostata && p.spostata.data) return p.spostata.data; if(p.vacanza) return p.vacanza.al||''; return p.prossima||''}
@@ -424,6 +465,15 @@ function inVacanza(p){return !!(!p.reso && p.vacanza && !(p.spostata && p.sposta
 const PATCHES=[];
 function applicaCorrezioni(st){
   st.patch=st.patch||[];
+  if(!st.patch.includes('gas1')){
+    for(const p of st.pazienti){
+      if(p.gas) continue;
+      const n=String(p.note||'');
+      const g=gasDa((n.match(/\d+\s*X\s*(3000|6000)/gi)||[]).join('+'));
+      if(g){ p.gas=g; p.note=n.replace(/\+?\s*\d+\s*X\s*(3000|6000)(\s*(GASSOSI|GASSOSO|GAS))?/gi,'').replace(/^[\s+\-–]+|[\s+\-–]+$/g,''); }
+    }
+    st.patch.push('gas1');
+  }
   if(!st.patch.includes('gruppi1')){ for(const p of st.pazienti){ if(!p.gruppo) p.gruppo=gruppoDa('',p.note); } st.patch.push('gruppi1'); }
   { const T=todayISO(); for(const p of st.pazienti){ if(p.extra){ p.extra=p.extra.filter(d=>d>=T); if(!p.extra.length) delete p.extra; } } }
   if(!st.patch.includes('note1')){
@@ -451,6 +501,147 @@ function applicaCorrezioni(st){
     st.patch.push(pt.id);
   }
   return fatte;
+}
+
+/* ---------- account e sincronizzazione (Supabase) ---------- */
+const CFG = (typeof window!=='undefined' && window.MEDICAIR_CONFIG) || {};
+const CLOUD = PWA && !!(CFG.supabaseUrl && CFG.supabaseKey && !/INSERISCI/i.test(CFG.supabaseUrl+CFG.supabaseKey));
+let sb=null, utente=null, statoSync='locale', ultimaSync=0, invioT=null, inInvio=false, invioAncora=false, serveLogin=false;
+const UKEY='medicair.ultimoUtente';
+function hashStr(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+':'+str.length}
+function statoPerCloud(){const o={};for(const [k,v] of Object.entries(S)){if(k==='storico'||k.startsWith('_'))continue;o[k]=v}return o}
+function mesiStorico(list){const m=new Map();for(const h of list){const k=String(h.data||'').slice(0,7)||'senza-data';if(!m.has(k))m.set(k,[]);m.get(k).push(h)}return m}
+function clientCloud(){
+  if(sb) return sb;
+  if(!window.supabase || !window.supabase.createClient) return null;
+  sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'medicair.sessione'}});
+  return sb;
+}
+function usaUtente(u){
+  utente={id:u.id,email:u.email||''};
+  lsSet(UKEY,JSON.stringify(utente));
+  KEY='medicair.u.'+u.id;
+  S=load();
+}
+async function initCloud(){
+  if(!CLOUD) return;
+  const c=clientCloud();
+  let sess=null;
+  if(c){ try{ const r=await conTimeout(c.auth.getSession(),6000); sess=r&&r.data&&r.data.session; }catch(e){} }
+  if(sess && sess.user){ usaUtente(sess.user); await scarica(); return; }
+  // senza rete: si continua con l'ultimo utente, si sincronizza appena torna il campo
+  let ult=null; try{ult=JSON.parse(lsGet(UKEY)||'null')}catch(e){}
+  if(ult && (!navigator.onLine || !c)){ usaUtente(ult); statoSync='offline'; return; }
+  serveLogin=true;
+}
+async function scarica(){
+  const c=clientCloud(); if(!c||!utente) return;
+  try{
+    const r=await conTimeout(c.from('stato').select('dati,aggiornato').eq('user_id',utente.id).maybeSingle(),10000);
+    if(!r) throw new Error('timeout');
+    if(r.error) throw r.error;
+    if(!r.data){
+      // account nuovo: porto sul cloud i dati già presenti su questo telefono
+      if(!S.pazienti.length){
+        let vecchio=null; try{vecchio=JSON.parse(lsGet(KEY_LOCALE)||'null')}catch(e){}
+        if(vecchio && Array.isArray(vecchio.pazienti) && vecchio.pazienti.length && !lsGet('medicair.migrato')){
+          S={...vecchio,patch:vecchio.patch||[]}; lsSet('medicair.migrato',utente.id);
+          setTimeout(()=>toast(`Ho portato sul tuo account i ${S.pazienti.length} pazienti che erano su questo telefono.`),6500);
+        }
+      }
+      S._rev=Date.now(); S._dirty=true; scriviLocale(); await invia(); return;
+    }
+    const tCloud=Date.parse(r.data.aggiornato);
+    if(!S._synced || tCloud>S._synced){
+      const m=await conTimeout(c.from('storico_mesi').select('mese,voci').eq('user_id',utente.id),15000);
+      if(!m || m.error) throw (m&&m.error)||new Error('timeout');
+      let storico=[].concat(...m.data.map(x=>x.voci||[]));
+      let unito=false;
+      if(S._dirty && S._synced){
+        const ids=new Set(storico.map(h=>h.id));
+        for(const h of S.storico||[]) if(!ids.has(h.id)){storico.push(h);unito=true}
+      }
+      storico.sort((a,b)=>(b.ts||0)-(a.ts||0));
+      const hashes={}; for(const [k,v] of mesiStorico(m.data.flatMap(x=>x.voci||[]))) hashes[k]=hashStr(JSON.stringify(v));
+      S={...r.data.dati, storico, _synced:tCloud, _rev:tCloud, _dirty:unito, _hashMesi:hashes};
+      S.storico=S.storico||[]; S.dismissed=S.dismissed||[]; S.mappe=S.mappe||{}; S.pazienti=S.pazienti||[];
+      applicaCorrezioni(S);
+      scriviLocale();
+      if(unito){ setTimeout(()=>toast('Dati aggiornati da un altro dispositivo.'),6500); await invia(); }
+    } else if(S._dirty) await invia();
+    statoSync='ok'; ultimaSync=Date.now();
+  }catch(e){ statoSync=navigator.onLine?'errore':'offline'; }
+}
+function programmaInvio(){ clearTimeout(invioT); statoSync='attesa'; invioT=setTimeout(invia,1500); }
+async function invia(){
+  const c=clientCloud(); if(!c||!utente) return;
+  if(inInvio){invioAncora=true;return}
+  inInvio=true;
+  const rev=S._rev||Date.now(), t=new Date(rev).toISOString();
+  try{
+    let r=await conTimeout(c.from('stato').upsert({user_id:utente.id,dati:statoPerCloud(),aggiornato:t}),15000);
+    if(!r) throw new Error('timeout'); if(r.error) throw r.error;
+    const hashes={}, righe=[];
+    for(const [k,v] of mesiStorico(S.storico)){const h=hashStr(JSON.stringify(v));hashes[k]=h;if(!S._hashMesi||S._hashMesi[k]!==h) righe.push({user_id:utente.id,mese:k,voci:v,aggiornato:t})}
+    for(const k in (S._hashMesi||{})) if(!(k in hashes)) righe.push({user_id:utente.id,mese:k,voci:[],aggiornato:t});
+    if(righe.length){ r=await conTimeout(c.from('storico_mesi').upsert(righe),20000); if(!r) throw new Error('timeout'); if(r.error) throw r.error; }
+    S._hashMesi=hashes; S._synced=Date.parse(t);
+    if(S._rev===rev) S._dirty=false;
+    scriviLocale();
+    statoSync=S._dirty?'attesa':'ok'; ultimaSync=Date.now();
+  }catch(e){ statoSync=navigator.onLine?'errore':'offline'; }
+  finally{
+    inInvio=false;
+    if(invioAncora||S._dirty&&statoSync==='attesa'){invioAncora=false;programmaInvio()}
+    aggiornaSyncUI();
+  }
+}
+function testoSync(){
+  if(!CLOUD) return '';
+  if(!utente) return '';
+  const ora=ultimaSync?new Date(ultimaSync).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'';
+  return {ok:`Salvato online${ora?' alle '+ora:''}`, attesa:'Salvataggio online in corso…', offline:'Senza internet: salvato sul telefono, verrà inviato appena torna il campo', errore:'Salvataggio online non riuscito, riprovo più tardi', locale:''}[statoSync]||'';
+}
+function aggiornaSyncUI(){ document.querySelectorAll('[data-sync]').forEach(el=>{el.textContent=testoSync()}); }
+function mostraLogin(msg){
+  const box=document.createElement('div'); box.className='login'; box.id='login';
+  box.innerHTML=`<form class="login-in" id="login-form" autocomplete="on">
+    ${LOGO.startsWith('data:')?`<img src="${LOGO}" alt="MedicAir People">`:'<h1>Medic Air</h1>'}
+    <h2>Accedi</h2>
+    <label class="field"><span>Email</span><input type="email" id="lg-email" autocomplete="username" required inputmode="email"></label>
+    <label class="field"><span>Password</span><input type="password" id="lg-pass" autocomplete="current-password" required></label>
+    <div id="lg-err">${msg?`<div class="errbox">${esc(msg)}</div>`:''}</div>
+    <button class="btn primary block" type="submit" id="lg-btn">Entra</button>
+    <p class="hint" style="margin-top:14px;text-align:center">L’account te lo crea il responsabile. Se hai dimenticato la password, chiedi a lui di reimpostarla.</p>
+    <div class="credit">Software sviluppato e creato da Nicola Giuntoni<span class="ver">Versione ${esc(versioneApp)}</span></div>
+  </form>`;
+  document.body.appendChild(box);
+  $('#login-form').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const btn=$('#lg-btn'), err=$('#lg-err');
+    const email=$('#lg-email').value.trim(), pass=$('#lg-pass').value;
+    if(!navigator.onLine){err.innerHTML='<div class="errbox">Per entrare la prima volta serve internet.</div>';return}
+    const c=clientCloud(); if(!c){err.innerHTML='<div class="errbox">Non riesco a collegarmi al server. Controlla la connessione e riapri l’app.</div>';return}
+    btn.disabled=true; btn.textContent='Accesso in corso…'; err.innerHTML='';
+    try{
+      const r=await conTimeout(c.auth.signInWithPassword({email,password:pass}),15000);
+      if(!r) throw new Error('timeout');
+      if(r.error){ err.innerHTML=`<div class="errbox">${/invalid/i.test(r.error.message||'')?'Email o password sbagliate.':'Accesso non riuscito: '+esc(r.error.message||'')}</div>`; return; }
+      usaUtente(r.data.user); btn.textContent='Scarico i tuoi pazienti…';
+      await scarica();
+      serveLogin=false; box.remove(); ui.tab='giro'; ui.day=todayISO(); render();
+      toast(`Ciao! Sei entrato come ${utente.email}.`);
+      setTimeout(()=>popupInstalla(),1500);
+    }catch(ex){ err.innerHTML='<div class="errbox">Il server non risponde. Riprova tra poco.</div>'; }
+    finally{ if(document.getElementById('lg-btn')){btn.disabled=false;btn.textContent='Entra'} }
+  });
+}
+async function esci(){
+  if(S._dirty && !navigator.onLine){ if(!confirm('Alcune modifiche non sono ancora online perché manca internet. Se esci ora le perdi. Uscire lo stesso?')) return; }
+  else if(S._dirty){ await invia(); }
+  try{ const c=clientCloud(); if(c) await conTimeout(c.auth.signOut(),5000); }catch(e){}
+  try{ localStorage.removeItem(KEY); localStorage.removeItem(UKEY); }catch(e){}
+  location.reload();
 }
 
 /* ---------- regole del ciclo ---------- */
@@ -485,7 +676,7 @@ function consegna(id){
   if(p.vacanza){p.prossima='';}
   const next=calcNext(p,d);
   p.ultima=d; p.prossima=next; p.spostata=null; p.vacanza=null;
-  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, note:p.note, fg:p.fg, data:d, prossima:next, prima});
+  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:d, prossima:next, prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
   toast(next ? `${p.nome}: consegnato. Prossima ${fmtShort(next)}.` : `${p.nome}: consegnato. Manca la F.G.: imposta la prossima visita nella scheda.`, ()=>annulla(hid));
@@ -600,7 +791,7 @@ function consegnaExtra(id){
   const prima=snap(p);
   if(p.extra){p.extra=p.extra.filter(x=>x!==D); if(!p.extra.length) delete p.extra;}
   if(!p.ultima || d>p.ultima) p.ultima=d;
-  logOp({tipo:'consegna', extra:true, pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, note:p.note, fg:p.fg, data:d, prossima:eff(p), prima});
+  logOp({tipo:'consegna', extra:true, pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:d, prossima:eff(p), prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
   toast(`${p.nome}: consegna extra fatta. Il suo giro resta ${fmtShort(eff(p))}.`,()=>annulla(hid));
@@ -682,6 +873,7 @@ function riepilogo(items){
     if(r.gasNote) gasNote.push(it);
     for(const [t,q] of Object.entries(r.bombole)){tot[t]=(tot[t]||0)+q;totale+=q}
     for(const [t,q] of Object.entries(r.gassosi)) gas[t]=(gas[t]||0)+q;
+    if(it.gas) for(const [t,q] of Object.entries(it.gas)) gas[t]=(gas[t]||0)+q;
   }
   const tipi=Object.keys(tot).sort((a,b)=>{const ia=ORDINE_CNT.indexOf(a),ib=ORDINE_CNT.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b)});
   return {tot, tipi, totale, gas, resi, variabili, vuoti, gasNote};
@@ -712,8 +904,10 @@ function cntBadge(cnt,sm){
   const long=txt.length>4;
   return `<span class="cnt${sm?' sm':''}${long?' long':''}${c?'':' warn'}" aria-label="CNT ${esc(c||'mancante')}">${esc(txt)}</span>`;
 }
+function fgBadge(fg){return `<span class="fgb" aria-label="Frequenza ${fg||'?'} giorni"><small>F.G.</small><b>${fg||'?'}</b></span>`}
+function gasBadge(g){if(!g) return '';const t=gasTesto(g);return `<span class="cnt sm gas${t.length>6?' long':''}" aria-label="Gassosi ${esc(t)}">${esc(t)}</span>`}
 function navHTML(){
-  const nv=verifiche().length;
+  const nv=verifiche().length, nr=S.pazienti.filter(p=>p.reso&&!p.reso.ritirato).length;
   const it=[
     ['giro','Giro','<path d="M3 17h2m14 0h2M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM9 17h6M3 17V7h11v10M14 10h4l3 4v3"/>'],
     ['pazienti','Pazienti','<path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/>'],
@@ -722,7 +916,7 @@ function navHTML(){
     ['storico','Storico','<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2"/>'],
     ['altro','Altro','<path d="M4 6h16M4 12h16M4 18h16"/>']
   ];
-  return it.map(([k,l,svg])=>`<button data-act="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg><span>${l}${k==='pazienti'&&nv?`<span class="badge">${nv}</span>`:''}</span></button>`).join('');
+  return it.map(([k,l,svg])=>`<button data-act="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg><span>${l}${k==='pazienti'&&nv?`<span class="badge">${nv}</span>`:''}${k==='resi'&&nr?`<span class="badge or">${nr}</span>`:''}</span></button>`).join('');
 }
 function render(){
   $('#nav').innerHTML=navHTML();
@@ -734,7 +928,7 @@ function render(){
   else if(ui.tab==='vacanza') app.innerHTML=renderVacanza();
   else if(ui.tab==='resi') app.innerHTML=renderResi();
   else app.innerHTML=renderAltro();
-  app.insertAdjacentHTML('beforeend',`<footer class="credit">Software sviluppato e creato da Nicola Giuntoni<span class="ver">Versione ${esc(versioneApp||'—')}</span></footer>`);
+  app.insertAdjacentHTML('beforeend',`<footer class="credit">${CLOUD&&utente?`<span class="ver" data-sync style="margin:0 0 6px">${esc(testoSync())}</span>`:''}Software sviluppato e creato da Nicola Giuntoni<span class="ver">Versione ${esc(versioneApp||'—')}</span></footer>`);
 }
 function storageWarn(){return storageOK?'':'<div class="storage-warn">Il telefono non sta salvando i dati di questa pagina. Scarica un backup da Altro prima di chiudere.</div>'}
 
@@ -759,7 +953,8 @@ function rowHTML(p,kind){
   if(p.spostata && p.spostata.motivo==='rinvio') meta.push(`<span class="rv">Rimandato (ciclo ${fmtShort(p.prossima)})</span>`);
   if(p.spostata && p.spostata.motivo==='aggiunto') meta.push('<span class="rv">Aggiunto al giro</span>');
   if(p.vacanza) meta.push('<span class="rv">Rientro dalle vacanze</span>');
-  if(kind!=='reso') meta.push('F.G. '+(p.fg||'?')+', ultima '+(p.ultima?fmtShort(p.ultima):'—'));
+  if(kind!=='reso' && p.gas) meta.push(`<span class="gasm">Gassosi ${esc(gasTesto(p.gas))}</span>`);
+  if(kind!=='reso') meta.push('Ultima '+(p.ultima?fmtShort(p.ultima):'—'));
   return `<div class="row${kind==='late'||kind==='nodate'||kind==='pastpend'?' late':''}">
     <button class="check" data-act="${kind==='extra'?'consegna-extra':kind==='reso'?'ritirato':'consegna'}" data-id="${p.id}" aria-label="${kind==='reso'?'Segna ritirato':'Segna consegnato'} ${esc(p.nome)}">${ICON_CHECK}</button>
     <button class="row-main" data-act="${kind==='extra'?'azioni-extra':kind==='reso'?'azioni-reso':'azioni'}" data-id="${p.id}">
@@ -768,7 +963,7 @@ function rowHTML(p,kind){
       ${p.note?`<span class="note">${esc(p.note)}</span>`:''}
     </button>
     <span class="loc${String(p.localita).length>11?' long':''}">${esc(titolo(p.localita))}</span>
-    ${cntBadge(kind==='reso'?p.reso.cnt:p.cnt)}
+    <span class="badges">${kind==='reso'?'':fgBadge(p.fg)}${cntBadge(kind==='reso'?p.reso.cnt:p.cnt)}</span>
   </div>`;
 }
 function doneRowHTML(h){
@@ -781,7 +976,7 @@ function doneRowHTML(h){
       ${undo?`<button class="undo-btn" data-act="annulla" data-hid="${h.id}">${h.tipo==='ritirato'?'Annulla ritiro':'Annulla consegna'}</button>`:''}
     </div>
     <span class="loc${String(h.localita).length>11?' long':''}">${esc(titolo(h.localita))}</span>
-    ${cntBadge(h.cnt)}
+    <span class="badges">${h.tipo==='ritirato'?'':fgBadge(h.fg)}${cntBadge(h.cnt)}</span>
   </div>`;
 }
 function gruppiLocalita(list){
@@ -1005,14 +1200,42 @@ function storicoListHTML(){
 }
 
 let deferredPrompt=null;
+function isStandalone(){return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone===true}
+function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1)}
+const IKEY='medicair.installa';
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+let popupMostrato=false;
+function popupInstalla(forza){
+  if(!PWA || popupMostrato || isStandalone()) return;
+  const st=lsGet(IKEY);
+  if(st==='mai' || st==='fatto') return;
+  if(!forza && !isIOS() && !deferredPrompt) return;
+  if(!$('#sheet-root').hidden) return;
+  popupMostrato=true;
+  const logo=LOGO.startsWith('data:')?`<img src="${LOGO}" alt="MedicAir People" style="height:40px;display:block;margin:0 auto 14px">`:'';
+  let corpo;
+  if(isIOS()) corpo=`<p class="lead">Mettila sulla schermata Home: si apre come un’app vera, a schermo intero, e funziona anche senza campo.</p>
+    <div class="card" style="margin:0 0 14px"><p style="margin:0;color:var(--ink)">1. In basso in Safari tocca <strong>Condividi</strong>, il quadrato con la freccia in su.<br>2. Scorri e scegli <strong>Aggiungi alla schermata Home</strong>.<br>3. Tocca <strong>Aggiungi</strong>.</p></div>
+    <div class="acts"><button class="act go" data-act="chiudi">Ho capito</button>`;
+  else if(deferredPrompt) corpo=`<p class="lead">Mettila sulla schermata Home: si apre come un’app vera, a schermo intero, e funziona anche senza campo.</p>
+    <div class="acts"><button class="act go" data-act="installa-popup">Installa app</button>`;
+  else corpo=`<p class="lead">Mettila sulla schermata Home: si apre come un’app vera e funziona anche senza campo.</p>
+    <div class="card" style="margin:0 0 14px"><p style="margin:0;color:var(--ink)">Tocca il menu <strong>⋮</strong> di Chrome in alto a destra, poi <strong>Installa app</strong> oppure <strong>Aggiungi a schermata Home</strong>.</p></div>
+    <div class="acts"><button class="act go" data-act="chiudi">Ho capito</button>`;
+  openSheet(`${logo}<h2 style="text-align:center;margin-right:0">Installa Medic Air</h2>${corpo}
+    <button class="act" data-act="chiudi">Più tardi</button>
+    <button class="act" style="justify-content:center;border:0;color:var(--muted);font-weight:500" data-act="installa-mai">Non chiedermelo più</button></div>`);
+}
 function renderAltro(){
-  const standalone = window.matchMedia && matchMedia('(display-mode: standalone)').matches;
   let inst='';
   if(PWA){
-    if(standalone) inst=`<div class="card"><h3>App installata</h3><p>Stai usando l’app dalla schermata Home.</p></div>`;
+    if(isStandalone()) inst=`<div class="card"><h3>App installata</h3><p>Stai usando l’app dalla schermata Home.</p></div>`;
+    else if(isIOS()) inst=`<div class="card"><h3>Installa sull’iPhone</h3><p>In Safari tocca Condividi (il quadrato con la freccia in su), poi “Aggiungi alla schermata Home” e Aggiungi.</p></div>`;
     else inst=`<div class="card"><h3>Installa sul telefono</h3><p>${deferredPrompt?'Mettila sulla schermata Home come una normale app, funziona anche senza campo.':'Se il pulsante non si attiva: menu ⋮ di Chrome, poi “Installa app” o “Aggiungi a schermata Home”.'}</p><button class="btn primary" data-act="installa" ${deferredPrompt?'':'disabled'}>Installa app</button></div>`;
   }
   return `<header class="page-h"><h1>Altro</h1><span class="sub">Medic Air</span></header>${storageWarn()}
+  ${CLOUD?(utente?`<div class="card"><h3>Il tuo account</h3><p>${esc(utente.email)}<br><span data-sync>${esc(testoSync())}</span></p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn danger" data-act="esci">Esci</button></div>`:''):(PWA?`<div class="card"><h3>Account online</h3><p>Non ancora collegato: i dati restano solo su questo telefono.</p></div>`:'')}
   ${inst}
   <div class="card"><h3>Foglio del giro</h3><p>Il foglio di ${fmtShort(ui.day)} in una pagina, con il quadratino V, righe vuote in fondo e il riepilogo bombole.</p><button class="btn" data-act="foglio">Apri foglio</button></div>
   <div class="card"><h3>Backup</h3><p>I dati restano su questo telefono. Scarica un backup ogni tanto e tienilo al sicuro: serve anche per spostare tutto su un altro telefono.</p>
@@ -1141,6 +1364,7 @@ function sheetScheda(id,opts={}){
   <label class="field"><span>Località</span><input id="f-loc" value="${esc(v.localita)}" autocomplete="off" autocapitalize="characters"></label>
   <label class="field"><span>CNT, bombole da portare</span><input id="f-cnt" value="${esc(v.cnt)}" autocomplete="off" autocapitalize="characters" placeholder="es. 31, 2X31, 2X31+1X47">
     <span class="quick">${ORDINE_CNT.map(c=>`<button type="button" data-act="set-cnt" data-v="${c}">${c}</button>`).join('')}</span></label>
+  <div class="field"><span>Gassosi</span><div class="gasrow">${TIPI_GAS.map(t=>`<div class="stepper"><b>${t}</b><button type="button" data-act="gas-meno" data-t="${t}" aria-label="Meno ${t}">−</button><output id="gas-${t}">${(v.gas&&v.gas[t])||0}</output><button type="button" data-act="gas-piu" data-t="${t}" aria-label="Più ${t}">+</button></div>`).join('')}</div></div>
   <div class="two">
     <label class="field"><span>F.G., ogni quanti giorni</span><select id="f-fg">${[['','Scegli'],...[7,14,21,28].map(n=>[n,n+' giorni'])].map(([k,l])=>`<option value="${k}" ${String(v.fg||'')===String(k)?'selected':''}>${l}</option>`).join('')}${v.fg&&![7,14,21,28].includes(v.fg)?`<option value="${v.fg}" selected>${v.fg} giorni</option>`:''}</select></label>
     <label class="field"><span>Giorno fisso</span><select id="f-gg"><option value="">Scegli</option>${GIORNI.slice(1).map(gn=>`<option ${v.giorno===gn?'selected':''}>${gn}</option>`).join('')}</select></label>
@@ -1185,6 +1409,8 @@ function salvaScheda(btn){
   const id=btn.dataset.id, giro=!!btn.dataset.giro;
   const nome=$('#f-nome').value.trim().toUpperCase(), loc=$('#f-loc').value.trim().toUpperCase();
   const cnt=cleanCnt($('#f-cnt').value), fg=toFG($('#f-fg').value), gg=$('#f-gg').value;
+  const gas={}; for(const t of TIPI_GAS){const n=+($('#gas-'+t).textContent||0); if(n>0) gas[t]=n;}
+  const gasV=Object.keys(gas).length?gas:null;
   const ult=$('#f-ult').value, note=$('#f-note').value.trim(), gruppo=gruppoDa($('#f-gruppo').value,'');
   let pro=$('#f-pro').value;
   const mv=$('#f-move');
@@ -1194,11 +1420,11 @@ function salvaScheda(btn){
   if(mv && mv.checked) pro=mv.dataset.nd;
   if(id){
     const p=byId(id); if(!p) return;
-    Object.assign(p,{nome,localita:loc,cnt,fg,giorno:gg,ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note,gruppo});
+    Object.assign(p,{nome,localita:loc,cnt,fg,giorno:gg,ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note,gruppo}); if(gasV) p.gas=gasV; else delete p.gas;
     save(); closeSheet(); render(); toast(`Scheda di ${nome} salvata.`);
   } else {
     const D=ui.day<todayISO()?todayISO():ui.day;
-    const p={id:uid(),nome,localita:loc,cnt,fg,giorno:gg||'',ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note,gruppo,spostata:null};
+    const p={id:uid(),nome,localita:loc,cnt,fg,giorno:gg||'',ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note,gruppo,spostata:null}; if(gasV) p.gas=gasV;
     if(giro){ p.prossima=D; if(!p.giorno) p.giorno=GIORNI[wd(D)]; }
     if(!p.giorno && p.prossima) p.giorno=GIORNI[wd(p.prossima)];
     S.pazienti.push(p); save(); closeSheet();
@@ -1234,7 +1460,7 @@ function giaFattiOk(){
     const p=byId(id); const c=p&&cicloRecupero(p); if(!c) continue;
     const prima=snap(p);
     p.ultima=c.data; p.prossima=c.next; p.spostata=null;
-    logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, note:p.note, fg:p.fg, data:c.data, prossima:c.next, prima, recupero:true});
+    logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:c.data, prossima:c.next, prima, recupero:true});
     n++;
   }
   save(); closeSheet(); render();
@@ -1250,7 +1476,7 @@ function foglio(D){
     ...g.delGiorno.map(p=>({p,tag:'',done:false})),
     ...g.extra.map(p=>({p,tag:'EXTRA',done:false})),
     ...g.resi.map(p=>({p:{nome:p.nome,localita:p.localita,cnt:p.reso.cnt,fg:'',note:'RESO'+(p.reso.nota?' '+p.reso.nota:'')},tag:'RITIRO',done:false})),
-    ...g.fatti.map(h=>({p:{nome:h.nome,localita:h.localita,cnt:h.cnt,fg:h.tipo==='ritirato'?'':h.fg,note:h.tipo==='ritirato'?'RESO':h.note},tag:h.tipo==='ritirato'?'RITIRO':'',done:true}))
+    ...g.fatti.map(h=>({p:{nome:h.nome,localita:h.localita,cnt:h.cnt,gas:h.gas,fg:h.tipo==='ritirato'?'':h.fg,note:h.tipo==='ritirato'?'RESO':h.note},tag:h.tipo==='ritirato'?'RITIRO':'',done:true}))
   ].sort((a,b)=>normTxt(a.p.localita).localeCompare(normTxt(b.p.localita))||a.p.nome.localeCompare(b.p.nome));
   const car=riepilogo(items.map(x=>x.p));
   const n=items.length, MAX=34;
@@ -1261,7 +1487,7 @@ function foglio(D){
   let prev=null, rows='';
   for(const it of items){
     const k=normTxt(it.p.localita); const grp=prev!==null && k!==prev; prev=k;
-    const note=[it.tag, it.p.note].filter(Boolean).join(' – ');
+    const note=[it.tag, it.p.gas?'GAS '+gasTesto(it.p.gas,'x'):'', it.p.note].filter(Boolean).join(' – ');
     rows+=`<tr class="${grp?'grp':''}${it.tag?' arr':''}"><td class="v">${it.done?'✓':''}</td><td class="n">${esc(it.p.nome)}</td><td class="c">${esc(it.p.cnt||'?')}</td><td>${esc(it.p.localita)}</td><td class="c">${it.p.fg||''}</td><td>${esc(note)}</td></tr>`;
   }
   for(let i=0;i<empties;i++) rows+=`<tr class="${i===0&&n?'grp':''}"><td class="v"></td><td></td><td></td><td></td><td></td><td></td></tr>`;
@@ -1332,9 +1558,9 @@ async function saveFile(name,data,mime){
 }
 function csvField(v){const s=String(v ?? '');return /[",;\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function exportCSV(){
-  const H=['NOME','LOCALITA','CNT','FG','GIORNO_FISSO','ULTIMA_VISITA','PROSSIMA_VISITA','RINVIO','NOTE','VACANZA_DAL','VACANZA_AL','GRUPPO','RESO_DAL','RESO_RITIRO','RESO_RITIRATO'];
+  const H=['NOME','LOCALITA','CNT','FG','GIORNO_FISSO','ULTIMA_VISITA','PROSSIMA_VISITA','RINVIO','NOTE','VACANZA_DAL','VACANZA_AL','GRUPPO','RESO_DAL','RESO_RITIRO','RESO_RITIRATO','GASSOSI'];
   const L=[...S.pazienti].sort((a,b)=>a.nome.localeCompare(b.nome));
-  const rows=L.map(p=>[p.nome,p.localita,p.cnt,p.fg||'',p.giorno,p.ultima,p.prossima,p.spostata?p.spostata.data:'',p.note,p.vacanza?p.vacanza.dal:'',p.vacanza?p.vacanza.al:'',p.gruppo||'',p.reso?p.reso.dal:'',p.reso?p.reso.ritiro:'',p.reso?p.reso.ritirato:''].map(csvField).join(','));
+  const rows=L.map(p=>[p.nome,p.localita,p.cnt,p.fg||'',p.giorno,p.ultima,p.prossima,p.spostata?p.spostata.data:'',p.note,p.vacanza?p.vacanza.dal:'',p.vacanza?p.vacanza.al:'',p.gruppo||'',p.reso?p.reso.dal:'',p.reso?p.reso.ritiro:'',p.reso?p.reso.ritirato:'',p.gas?gasTesto(p.gas,'X').replace(/ /g,''):''].map(csvField).join(','));
   saveFile(`Pazienti_${todayISO()}.csv`,'\ufeff'+[H.join(','),...rows].join('\r\n'),'text/csv').then(ok=>ok&&toast('CSV pazienti pronto.'));
 }
 function backup(){
@@ -1366,6 +1592,7 @@ const CAMPI=[
   ['vacanza_dal','In vacanza dal',['vacanza dal','in vacanza dal','vacanza']],
   ['vacanza_al','Rientro dalla vacanza',['vacanza al','rientro','rientro vacanza']],
   ['gruppo','Gruppo',['gruppo','zona giro','gruppo giro']],
+  ['gassosi','Gassosi',['gassosi','gas','bombole gas']],
   ['reso_dal','Nei resi dal',['reso dal','reso']],
   ['reso_ritiro','Giorno ritiro reso',['reso ritiro','ritiro']],
   ['reso_ritirato','Reso ritirato il',['reso ritirato','ritirato']]
@@ -1460,7 +1687,7 @@ function eseguiImport(){
     for(const r of R){
       const ex=m.get(key(r));
       if(ex){
-        for(const k of ['cnt','fg','giorno','ultima','prossima','note','gruppo']) if(r[k]) ex[k]=r[k];
+        for(const k of ['cnt','fg','giorno','ultima','prossima','note','gruppo','gas']) if(r[k]) ex[k]=r[k];
         if(r.spostata) ex.spostata=r.spostata;
         if(r.vacanza) ex.vacanza=r.vacanza;
         if(r.reso) ex.reso=r.reso;
@@ -1516,6 +1743,11 @@ const A={
   hfiltro:b=>{ui.hf=b.dataset.f;ui.hlim=200;render()},
   'piu-storico':()=>{ui.hlim+=200;$('#st-list').innerHTML=storicoListHTML()},
   foglio:()=>sheetFoglio(),
+  'gas-piu':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.min(20,(+o.textContent||0)+1)},
+  'gas-meno':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.max(0,(+o.textContent||0)-1)},
+  'sync-ora':async()=>{statoSync='attesa';aggiornaSyncUI();await scarica();if(S._dirty)await invia();render();toast(testoSync()||'Fatto.')},
+  esci:()=>{openSheet(`<h2>Uscire dall’account?</h2><p class="lead">I tuoi dati restano salvati online. Da questo telefono vengono tolti finché non rientri.</p><div class="acts"><button class="act" style="border-color:var(--late);color:var(--late)" data-act="esci-ok">Esci</button><button class="act" data-act="chiudi">Annulla</button></div>`)},
+  'esci-ok':()=>esci(),
   loc:b=>{ui.loc=b.dataset.l;ui.locDay=ui.day;render();window.scrollTo(0,0);const c=document.querySelector('.lchip[aria-pressed="true"]');if(c&&c.scrollIntoView)c.scrollIntoView({inline:'center',block:'nearest'})},
   'mostra-fatti':()=>{ui.showDone=!ui.showDone;render()},
   reso:b=>sheetReso(b.dataset.id),
@@ -1539,12 +1771,14 @@ const A={
   backup:()=>backup(),
   'export-csv':()=>exportCSV(),
   ripristina:()=>{const i=$('#file-backup');i.value='';i.click()},
-  'ripristina-ok':()=>{if(!pendingRestore)return;const s=pendingRestore;S={v:1,pazienti:s.pazienti,storico:s.storico||[],dismissed:s.dismissed||[],mappe:s.mappe||{},creato:s.creato||todayISO(),patch:s.patch||[]};applicaCorrezioni(S);pendingRestore=null;save();closeSheet();render();toast('Backup ripristinato.')},
+  'ripristina-ok':()=>{if(!pendingRestore)return;const s=pendingRestore;S={v:1,pazienti:s.pazienti,storico:s.storico||[],dismissed:s.dismissed||[],mappe:s.mappe||{},creato:s.creato||todayISO(),patch:s.patch||[]};applicaCorrezioni(S);pendingRestore=null;if(CLOUD&&utente){S._synced=S._synced||0;S._hashMesi={}}save();closeSheet();render();toast('Backup ripristinato.')},
   importa:()=>{const i=$('#file-import');i.value='';i.click()},
   'importa-ok':()=>eseguiImport(),
   svuota:()=>sheetSvuota(),
   'svuota-ok':()=>{if(normTxt($('#sv-ok').value)!=='SVUOTA'){toast('Scrivi SVUOTA per confermare.');return}const st=$('#sv-st').checked;S.pazienti=[];S.dismissed=[];if(st)S.storico=[];save();closeSheet();render();toast('Archivio svuotato.')},
-  installa:async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();try{await deferredPrompt.userChoice}catch(e){}deferredPrompt=null;render()},
+  installa:async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();try{const r=await deferredPrompt.userChoice;if(r&&r.outcome==='accepted')lsSet(IKEY,'fatto')}catch(e){}deferredPrompt=null;render()},
+  'installa-popup':async()=>{closeSheet();if(!deferredPrompt)return;deferredPrompt.prompt();try{const r=await deferredPrompt.userChoice;if(r&&r.outcome==='accepted')lsSet(IKEY,'fatto')}catch(e){}deferredPrompt=null;render()},
+  'installa-mai':()=>{lsSet(IKEY,'mai');closeSheet();toast('Va bene. Puoi sempre installarla da Altro.')},
   chiudi:()=>closeSheet()
 };
 document.addEventListener('click',e=>{
@@ -1563,10 +1797,13 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet-root').h
 $('#pick-day').addEventListener('change',e=>{if(validISO(e.target.value)){ui.day=e.target.value;ui.follow=ui.day===todayISO();ui.tab='giro';render()}});
 $('#file-import').addEventListener('change',e=>{const f=e.target.files[0];if(f) leggiImport(f)});
 $('#file-backup').addEventListener('change',e=>{const f=e.target.files[0];if(f) ripristina(f)});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(ui.follow&&ui.day!==todayISO()) ui.day=todayISO();render()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&CLOUD&&utente&&S._dirty){invia()} if(document.visibilityState==='visible'){ if(CLOUD&&utente&&navigator.onLine&&!$('#splash')) scarica().then(()=>render());if(ui.follow&&ui.day!==todayISO()) ui.day=todayISO();render()}});
 window.addEventListener('storage',e=>{if(e.key===KEY){S=load();render()}});
+window.addEventListener('online',async()=>{ if(!CLOUD) return; if(!utente){return} const c=clientCloud(); if(c){ try{await c.auth.getSession()}catch(e){} } await scarica(); render(); });
+window.addEventListener('offline',()=>{ if(CLOUD&&utente){statoSync='offline';aggiornaSyncUI()} });
 window.addEventListener('afterprint',()=>{$('#print-area').innerHTML=''});
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(ui.tab==='altro')render()});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(ui.tab==='altro')render();if(!$('#splash')) popupInstalla()});
+window.addEventListener('appinstalled',()=>{lsSet(IKEY,'fatto');deferredPrompt=null;if(!$('#sheet-root').hidden&&popupMostrato)closeSheet()});
 
 function conTimeout(pr,ms){return Promise.race([pr,new Promise(r=>setTimeout(()=>r(null),ms))])}
 async function leggiVersione(){
@@ -1588,7 +1825,8 @@ async function controllaAggiornamentoApp(){
   ver.textContent='Versione '+versioneApp;
   const msg=['Caricamento…','Carico i pazienti…','Preparo il giro…','Quasi pronto…'];
   let i=0, upd=null;
-  const t=setInterval(()=>{ if(upd) return; i=Math.min(i+1,msg.length-1); lbl.textContent=msg[i]; },1250);
+  let fissa=false;
+  const t=setInterval(()=>{ if(upd||fissa) return; i=Math.min(i+1,msg.length-1); lbl.textContent=msg[i]; },1250);
   const minimo=new Promise(r=>setTimeout(r,5000));
   const lavoro=(async()=>{
     const v=await leggiVersione();
@@ -1599,17 +1837,17 @@ async function controllaAggiornamentoApp(){
       versioneApp=v; ver.textContent='Versione '+v;
     }
     await controllaAggiornamentoApp();
+    if(CLOUD){ if(!upd){fissa=true;lbl.textContent='Collegamento al tuo account…';} await initCloud(); }
   })();
   await Promise.all([minimo,lavoro]);
   clearInterval(t);
   const bar=sp.querySelector('.bar i'); bar.classList.add('fine');
   if(upd){ lbl.textContent='Aggiornato alla versione '+upd; await new Promise(r=>setTimeout(r,1400)); }
   else await new Promise(r=>setTimeout(r,350));
-  render();
-  sp.classList.add('out'); setTimeout(()=>sp.remove(),500);
+  if(serveLogin) mostraLogin(); else render();
+  sp.classList.add('out'); setTimeout(()=>{sp.remove(); if(serveLogin) return; popupInstalla(); setTimeout(()=>popupInstalla(true),3000);},500);
 })();
-S = load();
-save();
+if(CLOUD){ S=seedState(); } else { S = load(); save(); }
 render();
 getDownloads();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
