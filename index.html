@@ -47,8 +47,8 @@ input,select,textarea{font:inherit;color:inherit}
 
 /* Header del giro */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--oxy);color:var(--oxy-ink);padding:5px 8px 7px}
-.top-row{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:4px}
-.icon-btn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:30px;line-height:1}
+.top-row{display:grid;grid-template-columns:54px 1fr 54px;align-items:center;gap:4px}
+.icon-btn{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;font-size:42px;line-height:1}
 .icon-btn:active{background:rgba(255,255,255,.15)}
 .top-date{text-align:center;min-width:0}
 .top-date h1{margin:0;font:600 25px/1.02 var(--f-cond);letter-spacing:.005em}
@@ -1235,12 +1235,12 @@ function renderGiro(){
     ${LOGO.startsWith('data:')?`<div class="brand"><img src="${LOGO}" alt="MedicAir People"></div>`:''}
     ${CLOUD&&utente&&utente.admin?`<div class="corr-bar"><button class="corr-btn" data-act="corrieri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/></svg>${inVistaAltrui()?esc(nomeCorriere(vista.email)):'Corrieri'}</button></div>`:''}
     <div class="top-row">
-      <button class="icon-btn" data-act="giorno" data-n="-1" aria-label="Giorno precedente">‹</button>
+      <button class="icon-btn" data-act="giorno" data-n="-7" aria-label="Settimana precedente">‹</button>
       <div class="top-date">
         <button class="pick" data-act="scegli-giorno" aria-label="Scegli una data"><h1>${fmtLong(D)}</h1></button>
         ${D!==T?'<div><button class="back-today" data-act="oggi">Torna a oggi</button></div>':''}
       </div>
-      <button class="icon-btn" data-act="giorno" data-n="1" aria-label="Giorno successivo">›</button>
+      <button class="icon-btn" data-act="giorno" data-n="7" aria-label="Settimana successiva">›</button>
     </div>
     <div class="week">${days.map(x=>`<button class="wd${x.d===D?' sel':''}${x.d===T?' today':''}${x.late?' has-late':''}" data-act="vai" data-d="${x.d}" aria-label="${fmtLong(x.d)}${meteo[x.d]?', '+descMeteo(meteo[x.d].c)+', massima '+meteo[x.d].max+' gradi':''}"><span class="wd-in"><span class="wd-dt"><span class="d1">${GB[wd(x.d)]}</span><span class="d2">${dm(x.d).d}</span></span>${meteo[x.d]?`<span class="wx"><i>${iconaMeteo(meteo[x.d].c)}</i><b>${meteo[x.d].max}°</b></span>`:''}</span></button>`).join('')}</div>
   </header>`;
@@ -1945,7 +1945,7 @@ function sheetSvuota(){
 /* ---------- eventi ---------- */
 const A={
   tab:b=>{ui.tab=b.dataset.tab;window.scrollTo(0,0);render()},
-  giorno:b=>{let d=addDays(ui.day,+b.dataset.n);if(wd(d)===0) d=addDays(d,+b.dataset.n);ui.day=d;ui.follow=d===todayISO();render()},
+  giorno:b=>{const n=+b.dataset.n;let d=addDays(ui.day,n);if(wd(d)===0) d=addDays(d,n<0?-1:1);ui.day=d;ui.follow=d===todayISO();render()},
   oggi:()=>{ui.day=todayISO();ui.follow=true;render()},
   vai:b=>{ui.day=b.dataset.d;ui.follow=ui.day===todayISO();ui.tab='giro';closeSheet();window.scrollTo(0,0);render()},
   'scegli-giorno':()=>{const i=$('#pick-day');i.value=ui.day;try{i.showPicker?i.showPicker():i.click()}catch(e){i.click()}},
