@@ -272,6 +272,12 @@ table.carico tr.tot td{border-bottom:0;font-weight:700}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .gasm{color:#FB923C}}
 .row .row-main{min-width:88px}
 @media (max-width:559px){.row{gap:4px;padding-right:8px}.row .loc{max-width:104px;font-size:18px}.row .loc.long{font-size:15.5px}.badges{flex-direction:column;align-items:stretch;gap:3px}.fgb{flex-direction:row;gap:3px;padding:1px 6px 2px;border-width:1.5px;border-top-width:1.5px;border-radius:7px;min-width:0}.fgb small{margin:0;font-size:9px}.fgb b{font-size:15px}}
+.vista-banner{position:sticky;top:env(safe-area-inset-top,0px);z-index:8;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#E07A00;color:#fff;padding:8px 12px;font-size:15px}
+.vista-banner button{background:#fff;color:#B45F00;font-weight:700;border-radius:999px;padding:6px 14px;font-size:14px;white-space:nowrap}
+body.altrui .top{top:calc(env(safe-area-inset-top,0px) + 44px)}
+.corr-bar{display:flex;justify-content:center;margin:0 0 4px}
+.corr-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.18);color:#fff;border-radius:999px;padding:5px 14px;font-weight:600;font-size:14px}
+.corr-btn svg{width:18px;height:18px}
 #print-area{display:none}
 @media print{
   body > *:not(#print-area){display:none !important}
@@ -506,10 +512,19 @@ function applicaCorrezioni(st){
 /* ---------- account e sincronizzazione (Supabase) ---------- */
 const CFG = (typeof window!=='undefined' && window.MEDICAIR_CONFIG) || {};
 const CLOUD = PWA && !!(CFG.supabaseUrl && CFG.supabaseKey && !/INSERISCI/i.test(CFG.supabaseUrl+CFG.supabaseKey));
-let sb=null, utente=null, statoSync='locale', ultimaSync=0, invioT=null, inInvio=false, invioAncora=false, serveLogin=false;
+let proponiRecupero=false;
+let sb=null, utente=null, vista=null, statoSync='locale', ultimaSync=0, invioT=null, inInvio=false, invioAncora=false, serveLogin=false;
 const UKEY='medicair.ultimoUtente';
+let erroreSync='';
+function segnaErrore(e){
+  const m=String((e&&(e.message||e.code))||e||'');
+  erroreSync=m;
+  if(/42P01|does not exist|schema cache|relation/i.test(m)) statoSync='nodb';
+  else if(/JWT|401|403|permission|row-level|policy/i.test(m)) statoSync='permessi';
+  else statoSync=navigator.onLine?'errore':'offline';
+}
 function hashStr(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+':'+str.length}
-function statoPerCloud(){const o={};for(const [k,v] of Object.entries(S)){if(k==='storico'||k.startsWith('_'))continue;o[k]=v}return o}
+function statoPerCloud(X){X=X||S;const o={};for(const [k,v] of Object.entries(X)){if(k==='storico'||k.startsWith('_'))continue;o[k]=v}return o}
 function mesiStorico(list){const m=new Map();for(const h of list){const k=String(h.data||'').slice(0,7)||'senza-data';if(!m.has(k))m.set(k,[]);m.get(k).push(h)}return m}
 function clientCloud(){
   if(sb) return sb;
@@ -518,17 +533,27 @@ function clientCloud(){
   return sb;
 }
 function usaUtente(u){
-  utente={id:u.id,email:u.email||''};
+  const prima=(()=>{try{return JSON.parse(lsGet(UKEY)||'null')}catch(e){return null}})();
+  utente={id:u.id,email:u.email||'',admin:!!(prima&&prima.id===u.id&&prima.admin)};
   lsSet(UKEY,JSON.stringify(utente));
+  vista={id:utente.id,email:utente.email};
   KEY='medicair.u.'+u.id;
   S=load();
+}
+function inVistaAltrui(){return !!(CLOUD&&utente&&vista&&vista.id!==utente.id)}
+async function controllaResponsabile(){
+  const c=clientCloud(); if(!c||!utente) return;
+  try{
+    const r=await conTimeout(c.from('responsabili').select('user_id').eq('user_id',utente.id).maybeSingle(),8000);
+    if(r && !r.error){ utente.admin=!!r.data; lsSet(UKEY,JSON.stringify(utente)); }
+  }catch(e){}
 }
 async function initCloud(){
   if(!CLOUD) return;
   const c=clientCloud();
   let sess=null;
   if(c){ try{ const r=await conTimeout(c.auth.getSession(),6000); sess=r&&r.data&&r.data.session; }catch(e){} }
-  if(sess && sess.user){ usaUtente(sess.user); await scarica(); return; }
+  if(sess && sess.user){ usaUtente(sess.user); await Promise.all([scarica(),controllaResponsabile()]); return; }
   // senza rete: si continua con l'ultimo utente, si sincronizza appena torna il campo
   let ult=null; try{ult=JSON.parse(lsGet(UKEY)||'null')}catch(e){}
   if(ult && (!navigator.onLine || !c)){ usaUtente(ult); statoSync='offline'; return; }
@@ -536,24 +561,23 @@ async function initCloud(){
 }
 async function scarica(){
   const c=clientCloud(); if(!c||!utente) return;
+  const chi=vista||utente;
   try{
-    const r=await conTimeout(c.from('stato').select('dati,aggiornato').eq('user_id',utente.id).maybeSingle(),10000);
+    const r=await conTimeout(c.from('stato').select('dati,aggiornato').eq('user_id',chi.id).maybeSingle(),10000);
     if(!r) throw new Error('timeout');
     if(r.error) throw r.error;
+    if(!r.data && chi.id!==utente.id){ statoSync='ok'; return; }
     if(!r.data){
       // account nuovo: porto sul cloud i dati già presenti su questo telefono
-      if(!S.pazienti.length){
-        let vecchio=null; try{vecchio=JSON.parse(lsGet(KEY_LOCALE)||'null')}catch(e){}
-        if(vecchio && Array.isArray(vecchio.pazienti) && vecchio.pazienti.length && !lsGet('medicair.migrato')){
-          S={...vecchio,patch:vecchio.patch||[]}; lsSet('medicair.migrato',utente.id);
-          setTimeout(()=>toast(`Ho portato sul tuo account i ${S.pazienti.length} pazienti che erano su questo telefono.`),6500);
-        }
-      }
+      if(!S.pazienti.length){ proponiRecupero=true; statoSync='ok'; return; }
       S._rev=Date.now(); S._dirty=true; scriviLocale(); await invia(); return;
     }
     const tCloud=Date.parse(r.data.aggiornato);
+    const cloudVuoto=!(r.data.dati&&Array.isArray(r.data.dati.pazienti)&&r.data.dati.pazienti.length);
+    if(cloudVuoto && S.pazienti.length){ S._rev=Date.now(); S._dirty=true; scriviLocale(); await invia(); statoSync=statoSync==='attesa'?'ok':statoSync; return; }
+    if(cloudVuoto && !S.pazienti.length) proponiRecupero=true;
     if(!S._synced || tCloud>S._synced){
-      const m=await conTimeout(c.from('storico_mesi').select('mese,voci').eq('user_id',utente.id),15000);
+      const m=await conTimeout(c.from('storico_mesi').select('mese,voci').eq('user_id',chi.id),15000);
       if(!m || m.error) throw (m&&m.error)||new Error('timeout');
       let storico=[].concat(...m.data.map(x=>x.voci||[]));
       let unito=false;
@@ -570,26 +594,27 @@ async function scarica(){
       if(unito){ setTimeout(()=>toast('Dati aggiornati da un altro dispositivo.'),6500); await invia(); }
     } else if(S._dirty) await invia();
     statoSync='ok'; ultimaSync=Date.now();
-  }catch(e){ statoSync=navigator.onLine?'errore':'offline'; }
+  }catch(e){ segnaErrore(e); }
 }
 function programmaInvio(){ clearTimeout(invioT); statoSync='attesa'; invioT=setTimeout(invia,1500); }
 async function invia(){
   const c=clientCloud(); if(!c||!utente) return;
   if(inInvio){invioAncora=true;return}
   inInvio=true;
-  const rev=S._rev||Date.now(), t=new Date(rev).toISOString();
+  const chi=vista||utente, S0=S, K0=KEY;
+  const rev=S0._rev||Date.now(), t=new Date(rev).toISOString();
   try{
-    let r=await conTimeout(c.from('stato').upsert({user_id:utente.id,dati:statoPerCloud(),aggiornato:t}),15000);
+    let r=await conTimeout(c.from('stato').upsert({user_id:chi.id,email:chi.email||null,dati:statoPerCloud(S0),aggiornato:t}),15000);
     if(!r) throw new Error('timeout'); if(r.error) throw r.error;
     const hashes={}, righe=[];
-    for(const [k,v] of mesiStorico(S.storico)){const h=hashStr(JSON.stringify(v));hashes[k]=h;if(!S._hashMesi||S._hashMesi[k]!==h) righe.push({user_id:utente.id,mese:k,voci:v,aggiornato:t})}
-    for(const k in (S._hashMesi||{})) if(!(k in hashes)) righe.push({user_id:utente.id,mese:k,voci:[],aggiornato:t});
+    for(const [k,v] of mesiStorico(S0.storico)){const h=hashStr(JSON.stringify(v));hashes[k]=h;if(!S0._hashMesi||S0._hashMesi[k]!==h) righe.push({user_id:chi.id,mese:k,voci:v,aggiornato:t})}
+    for(const k in (S0._hashMesi||{})) if(!(k in hashes)) righe.push({user_id:chi.id,mese:k,voci:[],aggiornato:t});
     if(righe.length){ r=await conTimeout(c.from('storico_mesi').upsert(righe),20000); if(!r) throw new Error('timeout'); if(r.error) throw r.error; }
-    S._hashMesi=hashes; S._synced=Date.parse(t);
-    if(S._rev===rev) S._dirty=false;
-    scriviLocale();
+    S0._hashMesi=hashes; S0._synced=Date.parse(t);
+    if(S0._rev===rev) S0._dirty=false;
+    try{ localStorage.setItem(K0, JSON.stringify(S0)); }catch(e){}
     statoSync=S._dirty?'attesa':'ok'; ultimaSync=Date.now();
-  }catch(e){ statoSync=navigator.onLine?'errore':'offline'; }
+  }catch(e){ segnaErrore(e); }
   finally{
     inInvio=false;
     if(invioAncora||S._dirty&&statoSync==='attesa'){invioAncora=false;programmaInvio()}
@@ -600,7 +625,7 @@ function testoSync(){
   if(!CLOUD) return '';
   if(!utente) return '';
   const ora=ultimaSync?new Date(ultimaSync).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'';
-  return {ok:`Salvato online${ora?' alle '+ora:''}`, attesa:'Salvataggio online in corso…', offline:'Senza internet: salvato sul telefono, verrà inviato appena torna il campo', errore:'Salvataggio online non riuscito, riprovo più tardi', locale:''}[statoSync]||'';
+  return {ok:`Salvato online${ora?' alle '+ora:''}`, attesa:'Salvataggio online in corso…', offline:'Senza internet: salvato sul telefono, verrà inviato appena torna il campo', errore:'Salvataggio online non riuscito, riprovo più tardi', nodb:'ATTENZIONE: database online non configurato, i dati sono solo su questo telefono', permessi:'ATTENZIONE: il server rifiuta il salvataggio (permessi), i dati sono solo su questo telefono', locale:''}[statoSync]||'';
 }
 function aggiornaSyncUI(){ document.querySelectorAll('[data-sync]').forEach(el=>{el.textContent=testoSync()}); }
 function mostraLogin(msg){
@@ -628,20 +653,108 @@ function mostraLogin(msg){
       if(!r) throw new Error('timeout');
       if(r.error){ err.innerHTML=`<div class="errbox">${/invalid/i.test(r.error.message||'')?'Email o password sbagliate.':'Accesso non riuscito: '+esc(r.error.message||'')}</div>`; return; }
       usaUtente(r.data.user); btn.textContent='Scarico i tuoi pazienti…';
-      await scarica();
+      await Promise.all([scarica(),controllaResponsabile()]);
       serveLogin=false; box.remove(); ui.tab='giro'; ui.day=todayISO(); render();
+      if(proponiRecupero||!S.pazienti.length){ proponiRecupero=false; setTimeout(()=>sheetRecupero(true),400); }
       toast(`Ciao! Sei entrato come ${utente.email}.`);
       setTimeout(()=>popupInstalla(),1500);
     }catch(ex){ err.innerHTML='<div class="errbox">Il server non risponde. Riprova tra poco.</div>'; }
     finally{ if(document.getElementById('lg-btn')){btn.disabled=false;btn.textContent='Entra'} }
   });
 }
-async function esci(){
-  if(S._dirty && !navigator.onLine){ if(!confirm('Alcune modifiche non sono ancora online perché manca internet. Se esci ora le perdi. Uscire lo stesso?')) return; }
-  else if(S._dirty){ await invia(); }
+async function cambiaVista(id,email){
+  if(!CLOUD||!utente) return;
+  if(!navigator.onLine){toast('Serve internet per aprire il giro di un altro corriere.');return}
+  closeSheet();
+  clearTimeout(invioT);
+  if(S._dirty) await invia();
+  for(let i=0;i<40&&inInvio;i++) await new Promise(r=>setTimeout(r,250));
+  vista={id,email}; KEY='medicair.u.'+id; S=load();
+  ui.tab='giro'; ui.day=todayISO(); ui.follow=true; ui.q=''; ui.filtro='tutti';
+  render(); toast(id===utente.id?'Sei tornato al tuo giro.':`Carico il giro di ${email}…`);
+  await scarica(); render();
+  if(id!==utente.id) toast(`Stai lavorando sul giro di ${email}.`);
+}
+function nomeCorriere(email){return String(email||'').split('@')[0]||email||'corriere'}
+async function sheetCorrieri(){
+  if(!utente||!utente.admin) return;
+  openSheet(`<h2>Corrieri</h2><p class="lead">Carico la situazione di oggi…</p>`);
+  const c=clientCloud(); const T=todayISO(), mese=T.slice(0,7);
+  try{
+    const [st,sm]=await Promise.all([
+      conTimeout(c.from('stato').select('user_id,email,dati,aggiornato'),15000),
+      conTimeout(c.from('storico_mesi').select('user_id,mese,voci').eq('mese',mese),15000)
+    ]);
+    if(!st||st.error||!sm||sm.error) throw new Error('errore');
+    const voci={}; for(const r of sm.data) voci[r.user_id]=(voci[r.user_id]||[]).concat(r.voci||[]);
+    const salva=S, righe=[];
+    for(const r of st.data){
+      // uso le stesse regole del giro calcolando sui dati di quel corriere
+      S={...r.dati, storico:voci[r.user_id]||[]}; S.pazienti=S.pazienti||[];
+      const g=giroDi(T);
+      righe.push({id:r.user_id,email:r.email||(r.user_id===utente.id?utente.email:'(senza email)'),
+        fare:g.senzaData.length+g.arretrati.length+g.delGiorno.length+g.extra.length+g.resi.length,
+        fatti:g.fatti.filter(h=>h.tipo==='consegna').length, arr:g.arretrati.length, paz:S.pazienti.length, agg:r.aggiornato});
+    }
+    S=salva;
+    righe.sort((a,b)=>(a.id===utente.id?-1:b.id===utente.id?1:0)||a.email.localeCompare(b.email));
+    const ora=t=>{const d=new Date(t);return (d.toDateString()===new Date().toDateString()?'oggi ':d.toLocaleDateString('it-IT',{day:'numeric',month:'short'})+' ')+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})};
+    openSheet(`<h2>Corrieri</h2><p class="lead">Situazione di oggi. Tocca un corriere per aprire il suo giro: puoi consegnare, rimandare e modificare come fosse il tuo.</p>
+      <div class="res">${righe.map(x=>`<div class="res-row"><div><div class="nome">${esc(nomeCorriere(x.email))}${x.id===utente.id?' (tu)':''}${vista&&vista.id===x.id?' <span class="tag ok">aperto</span>':''}</div>
+        <div class="meta">${x.fare} da fare, ${x.fatti} consegnati${x.arr?`, <span class="lt">${x.arr} arretrati</span>`:''}. ${x.paz} pazienti</div>
+        <div class="meta">Ultimo salvataggio ${esc(ora(x.agg))}</div></div>
+        <button class="btn${vista&&vista.id===x.id?'':' primary'}" data-act="apri-corriere" data-id="${x.id}" data-email="${esc(x.email)}">${vista&&vista.id===x.id?'Aperto':'Apri'}</button></div>`).join('')}</div>
+      <p class="hint" style="margin-top:14px">Un corriere compare qui dopo il suo primo accesso all’app.</p>`);
+  }catch(e){
+    openSheet(`<h2>Corrieri</h2><div class="errbox">Non riesco a caricare i corrieri. Controlla internet e riprova.</div><button class="btn block" data-act="corrieri">Riprova</button>`);
+  }
+}
+async function esci(forza){
+  if(!forza){
+    if(S._dirty && navigator.onLine) await invia();
+    if(S._dirty || (statoSync!=='ok' && statoSync!=='locale')){
+      openSheet(`<h2>Aspetta prima di uscire</h2><p class="lead">Alcuni dati non risultano salvati online (${esc(testoSync()||'stato sconosciuto')}). Se esci restano comunque su questo telefono e li ritrovi rientrando con lo stesso account.</p>
+        <div class="acts"><button class="act go" data-act="backup">Scarica prima un backup</button><button class="act" data-act="esci-forza">Esci lo stesso</button><button class="act" data-act="chiudi">Resta dentro</button></div>`);
+      return;
+    }
+  }
   try{ const c=clientCloud(); if(c) await conTimeout(c.auth.signOut(),5000); }catch(e){}
-  try{ localStorage.removeItem(KEY); localStorage.removeItem(UKEY); }catch(e){}
+  // i dati del telefono NON si cancellano: servono se il salvataggio online non è andato a buon fine
+  try{ localStorage.removeItem(UKEY); }catch(e){}
   location.reload();
+}
+function datiLocali(){
+  const out=[];
+  try{
+    for(const k of Object.keys(localStorage)){
+      if(k===KEY) continue;
+      if(k!==KEY_LOCALE && !k.startsWith('medicair.u.')) continue;
+      let d=null; try{d=JSON.parse(localStorage.getItem(k))}catch(e){}
+      if(!d||!Array.isArray(d.pazienti)||!d.pazienti.length) continue;
+      const cons=(d.storico||[]).filter(h=>h.tipo==='consegna').map(h=>h.data).sort();
+      out.push({k, nome:k===KEY_LOCALE?'Dati salvati prima del login':(k==='medicair.u.'+(utente&&utente.id)?'Il tuo account su questo telefono':'Altro account su questo telefono'),
+        paz:d.pazienti.length, cons:cons.length, ultima:cons[cons.length-1]||'', rev:d._rev||0});
+    }
+  }catch(e){}
+  return out.sort((a,b)=>(b.ultima||'').localeCompare(a.ultima||'')||b.paz-a.paz);
+}
+function sheetRecupero(auto){
+  const L=datiLocali();
+  if(!L.length){ if(!auto) openSheet(`<h2>Recupera dati</h2><p class="lead">Su questo telefono non ho trovato altri dati da recuperare. Se hai un file di backup, usa “Ripristina da backup” in Altro.</p>`); return; }
+  openSheet(`<h2>${auto?'Ho trovato i tuoi dati':'Recupera dati'}</h2><p class="lead">${auto?'Il tuo account online è vuoto, ma su questo telefono ci sono dei pazienti salvati. Scegli quali riportare nel tuo account:':'Dati trovati su questo telefono. Quelli scelti prendono il posto dei dati attuali del tuo account.'}</p>
+    <div class="res">${L.map(x=>`<div class="res-row"><div><div class="nome">${esc(x.nome)}</div><div class="meta">${x.paz} pazienti, ${x.cons} consegne registrate${x.ultima?`, l’ultima ${fmtShort(x.ultima)}`:''}</div></div><button class="btn primary" data-act="recupera" data-k="${esc(x.k)}">Recupera</button></div>`).join('')}</div>
+    <p class="hint" style="margin-top:12px">Se ne vedi più di uno, di solito quello giusto è quello con l’ultima consegna più recente.</p>`);
+}
+function recupera(k){
+  let d=null; try{d=JSON.parse(localStorage.getItem(k))}catch(e){}
+  if(!d||!Array.isArray(d.pazienti)){toast('Dati non leggibili.');return}
+  const nuovo={}; for(const [kk,v] of Object.entries(d)) if(!kk.startsWith('_')) nuovo[kk]=v;
+  nuovo.storico=nuovo.storico||[]; nuovo.dismissed=nuovo.dismissed||[]; nuovo.mappe=nuovo.mappe||{}; nuovo.patch=nuovo.patch||[];
+  S=nuovo; applicaCorrezioni(S);
+  S._rev=Date.now(); S._dirty=true; S._hashMesi={};
+  scriviLocale(); closeSheet(); render();
+  if(CLOUD&&utente) invia().then(()=>{render(); toast(statoSync==='ok'?`Recuperati ${S.pazienti.length} pazienti e salvati online.`:`Recuperati ${S.pazienti.length} pazienti sul telefono. ${testoSync()}`)});
+  else toast(`Recuperati ${S.pazienti.length} pazienti.`);
 }
 
 /* ---------- regole del ciclo ---------- */
@@ -922,15 +1035,17 @@ function render(){
   $('#nav').innerHTML=navHTML();
   $('#fab').hidden = ui.tab!=='giro';
   const app=$('#app');
+  document.body.classList.toggle('altrui',inVistaAltrui());
   if(ui.tab==='giro') app.innerHTML=renderGiro();
   else if(ui.tab==='pazienti') app.innerHTML=renderPazienti();
   else if(ui.tab==='storico') app.innerHTML=renderStorico();
   else if(ui.tab==='vacanza') app.innerHTML=renderVacanza();
   else if(ui.tab==='resi') app.innerHTML=renderResi();
   else app.innerHTML=renderAltro();
+  if(inVistaAltrui()) app.insertAdjacentHTML('afterbegin',`<div class="vista-banner"><span>Giro di <strong>${esc(nomeCorriere(vista.email))}</strong></span><button data-act="apri-corriere" data-id="${utente.id}" data-email="${esc(utente.email)}">Torna al mio</button></div>`);
   app.insertAdjacentHTML('beforeend',`<footer class="credit">${CLOUD&&utente?`<span class="ver" data-sync style="margin:0 0 6px">${esc(testoSync())}</span>`:''}Software sviluppato e creato da Nicola Giuntoni<span class="ver">Versione ${esc(versioneApp||'—')}</span></footer>`);
 }
-function storageWarn(){return storageOK?'':'<div class="storage-warn">Il telefono non sta salvando i dati di questa pagina. Scarica un backup da Altro prima di chiudere.</div>'}
+function storageWarn(){const w=(CLOUD&&utente&&(statoSync==='nodb'||statoSync==='permessi'))?`<div class="storage-warn">${esc(testoSync())}.${erroreSync?` Dettaglio: ${esc(erroreSync.slice(0,120))}`:''}</div>`:'';return w+(storageOK?'':'<div class="storage-warn">Il telefono non sta salvando i dati di questa pagina. Scarica un backup da Altro prima di chiudere.</div>')}
 
 function rowHTML(p,kind){
   const D=ui.day, e=eff(p), T=todayISO();
@@ -998,6 +1113,7 @@ function renderGiro(){
   const rel = D===T?'Oggi':D===addDays(T,1)?'Domani':D===addDays(T,-1)?'Ieri':(D<T?'Giorno passato':'');
   let h=`<header class="top">
     ${LOGO.startsWith('data:')?`<div class="brand"><img src="${LOGO}" alt="MedicAir People"></div>`:''}
+    ${CLOUD&&utente&&utente.admin?`<div class="corr-bar"><button class="corr-btn" data-act="corrieri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/></svg>${inVistaAltrui()?esc(nomeCorriere(vista.email)):'Corrieri'}</button></div>`:''}
     <div class="top-row">
       <button class="icon-btn" data-act="giorno" data-n="-1" aria-label="Giorno precedente">‹</button>
       <div class="top-date">
@@ -1235,7 +1351,7 @@ function renderAltro(){
     else inst=`<div class="card"><h3>Installa sul telefono</h3><p>${deferredPrompt?'Mettila sulla schermata Home come una normale app, funziona anche senza campo.':'Se il pulsante non si attiva: menu ⋮ di Chrome, poi “Installa app” o “Aggiungi a schermata Home”.'}</p><button class="btn primary" data-act="installa" ${deferredPrompt?'':'disabled'}>Installa app</button></div>`;
   }
   return `<header class="page-h"><h1>Altro</h1><span class="sub">Medic Air</span></header>${storageWarn()}
-  ${CLOUD?(utente?`<div class="card"><h3>Il tuo account</h3><p>${esc(utente.email)}<br><span data-sync>${esc(testoSync())}</span></p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn danger" data-act="esci">Esci</button></div>`:''):(PWA?`<div class="card"><h3>Account online</h3><p>Non ancora collegato: i dati restano solo su questo telefono.</p></div>`:'')}
+  ${CLOUD?(utente?`<div class="card"><h3>Il tuo account</h3><p>${esc(utente.email)}${utente.admin?' (responsabile)':''}${inVistaAltrui()?`<br>Stai lavorando sul giro di ${esc(vista.email)}`:''}<br><span data-sync>${esc(testoSync())}</span></p><button class="btn" data-act="sync-ora">Sincronizza ora</button><button class="btn" data-act="recupero">Recupera dati</button><button class="btn danger" data-act="esci">Esci</button></div>`:''):(PWA?`<div class="card"><h3>Account online</h3><p>Non ancora collegato: i dati restano solo su questo telefono.</p></div>`:'')}
   ${inst}
   <div class="card"><h3>Foglio del giro</h3><p>Il foglio di ${fmtShort(ui.day)} in una pagina, con il quadratino V, righe vuote in fondo e il riepilogo bombole.</p><button class="btn" data-act="foglio">Apri foglio</button></div>
   <div class="card"><h3>Backup</h3><p>I dati restano su questo telefono. Scarica un backup ogni tanto e tienilo al sicuro: serve anche per spostare tutto su un altro telefono.</p>
@@ -1743,6 +1859,11 @@ const A={
   hfiltro:b=>{ui.hf=b.dataset.f;ui.hlim=200;render()},
   'piu-storico':()=>{ui.hlim+=200;$('#st-list').innerHTML=storicoListHTML()},
   foglio:()=>sheetFoglio(),
+  'esci-forza':()=>esci(true),
+  recupero:()=>sheetRecupero(false),
+  recupera:b=>recupera(b.dataset.k),
+  corrieri:()=>sheetCorrieri(),
+  'apri-corriere':b=>cambiaVista(b.dataset.id,b.dataset.email),
   'gas-piu':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.min(20,(+o.textContent||0)+1)},
   'gas-meno':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.max(0,(+o.textContent||0)-1)},
   'sync-ora':async()=>{statoSync='attesa';aggiornaSyncUI();await scarica();if(S._dirty)await invia();render();toast(testoSync()||'Fatto.')},
@@ -1845,7 +1966,7 @@ async function controllaAggiornamentoApp(){
   if(upd){ lbl.textContent='Aggiornato alla versione '+upd; await new Promise(r=>setTimeout(r,1400)); }
   else await new Promise(r=>setTimeout(r,350));
   if(serveLogin) mostraLogin(); else render();
-  sp.classList.add('out'); setTimeout(()=>{sp.remove(); if(serveLogin) return; popupInstalla(); setTimeout(()=>popupInstalla(true),3000);},500);
+  sp.classList.add('out'); setTimeout(()=>{sp.remove(); if(serveLogin) return; if(CLOUD&&utente&&(proponiRecupero||!S.pazienti.length)){proponiRecupero=false;sheetRecupero(true);return} popupInstalla(); setTimeout(()=>popupInstalla(true),3000);},500);
 })();
 if(CLOUD){ S=seedState(); } else { S = load(); save(); }
 render();
