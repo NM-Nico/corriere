@@ -860,8 +860,12 @@ async function chiamaAdmin(body){
     if(st===404||/Failed to send|Requested function was not found|FunctionsFetchError|FunctionsRelayError/i.test(m)) m='NOFN';
     throw new Error(m);
   }
-  if(r.data&&r.data.error) throw new Error(r.data.error);
-  return r.data||{};
+  let d=r.data;
+  if(typeof d==='string'){ try{ d=JSON.parse(d) }catch(e){} }
+  if(d&&d.error) throw new Error(d.error);
+  const giusta = body.azione==='lista' ? (d&&Array.isArray(d.utenti)) : (d&&d.ok===true);
+  if(!giusta) throw new Error('CODICE');
+  return d;
 }
 async function caricaAdmin(){
   if(ADM.carico) return; ADM.carico=true; ADM.err=''; ADM.fnErr='';
@@ -903,7 +907,7 @@ function renderAdmin(){
   const ora=t=>{if(!t) return 'mai';const d=new Date(t);return (d.toDateString()===new Date().toDateString()?'oggi ':d.toLocaleDateString('it-IT',{day:'numeric',month:'short'})+' ')+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})};
   let h=`<header class="page-h"><h1>Admin</h1><span class="sub">Gestione corrieri</span></header>
   <div class="card" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="adm-nuovo" ${ADM.fnErr?'disabled':''}>+ Nuovo corriere</button><button class="btn" data-act="adm-ricarica">${ADM.carico?'Carico…':'Aggiorna'}</button></div>`;
-  if(ADM.fnErr) h+=`<div class="storage-warn">${ADM.fnErr==='NOFN'?'La funzione <b>admin-corrieri</b> non è ancora attiva su Supabase: finché non la pubblichi puoi solo vedere e aprire i giri, non creare, modificare o eliminare account.':'Gestione account non disponibile: '+esc(ADM.fnErr)}</div>`;
+  if(ADM.fnErr) h+=`<div class="storage-warn">${ADM.fnErr==='NOFN'?'La funzione <b>admin-corrieri</b> non è ancora attiva su Supabase: finché non la pubblichi puoi solo vedere e aprire i giri, non creare, modificare o eliminare account.':ADM.fnErr==='CODICE'?'Su Supabase la funzione <b>admin-corrieri</b> esiste ma contiene un codice diverso (probabilmente quello di esempio). Aprila, sostituisci tutto il codice con quello del file admin-corrieri.ts e premi Deploy.':'Gestione account non disponibile: '+esc(ADM.fnErr)}</div>`;
   if(ADM.err) return h+`<div class="errbox" style="margin:10px 14px">${esc(ADM.err)}</div>`;
   if(!ADM.utenti) return h+`<p class="hint" style="margin:14px">Carico i corrieri…</p>`;
   const L=[...ADM.utenti].sort((a,b)=>(a.id===utente.id?-1:b.id===utente.id?1:0)||(nomeCompleto(a)||a.email).localeCompare(nomeCompleto(b)||b.email));
@@ -946,7 +950,7 @@ async function salvaCorriere(btn){
   btn.disabled=true; btn.textContent='Salvo…'; err.innerHTML='';
   try{ await chiamaAdmin(body); }
   catch(e){ btn.disabled=false; btn.textContent=id?'Salva modifiche':'Crea corriere';
-    let m=e.message||''; if(/already|registered|exists/i.test(m)) m='Esiste già un account con questa email.'; else if(m==='NOFN') m='La funzione admin-corrieri non è attiva su Supabase.';
+    let m=e.message||''; if(/already|registered|exists/i.test(m)) m='Esiste già un account con questa email.'; else if(m==='NOFN') m='La funzione admin-corrieri non è attiva su Supabase.'; else if(m==='CODICE') m='Il corriere NON è stato creato: su Supabase la funzione admin-corrieri contiene un codice diverso. Sostituiscilo con quello del file admin-corrieri.ts e premi Deploy.';
     err.innerHTML=`<div class="errbox">${esc(m)}</div>`; return; }
   if(id===utente.id){ utente.nome=nome; utente.cognome=cognome; if(body.email) utente.email=email; lsSet(UKEY,JSON.stringify(utente)); if(!inVistaAltrui()){S.profilo={nome,cognome};save();} }
   if(!id||pw||body.email){
@@ -972,7 +976,7 @@ async function eliminaCorriere(btn){
   const x=(ADM.utenti||[]).find(u=>u.id===id);
   btn.disabled=true; btn.textContent='Elimino…';
   try{ await chiamaAdmin({azione:'elimina',id}); }
-  catch(e){ btn.disabled=false; btn.textContent='Elimina definitivamente'; err.innerHTML=`<div class="errbox">${esc(e.message==='NOFN'?'La funzione admin-corrieri non è attiva su Supabase.':e.message)}</div>`; return; }
+  catch(e){ btn.disabled=false; btn.textContent='Elimina definitivamente'; err.innerHTML=`<div class="errbox">${esc(e.message==='NOFN'?'La funzione admin-corrieri non è attiva su Supabase.':e.message==='CODICE'?'Non eliminato: la funzione admin-corrieri su Supabase non ha il codice giusto.':e.message)}</div>`; return; }
   if(vista&&vista.id===id) await cambiaVista(utente.id,utente.email);
   closeSheet(); toast(`${x?nomeCompleto(x)||x.email:'Corriere'} eliminato.`);
   ADM.utenti=null; caricaAdmin();
