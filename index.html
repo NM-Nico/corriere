@@ -211,6 +211,7 @@ input,select,textarea{font:inherit;color:inherit}
 .quick button{height:36px;padding:0 12px;border-radius:9px;border:1.5px solid var(--line);font:600 17px/1 var(--f-cond)}
 .hint{font-size:14px;color:var(--muted);margin:-4px 0 12px}
 .warnbox{border-radius:10px;padding:10px 12px;background:var(--later-soft);color:var(--later);font-size:15px;margin:0 0 12px}
+.okbox{border-radius:10px;padding:10px 12px;background:var(--oxy-soft);color:var(--oxy);font-size:15px;margin:0 0 12px;font-weight:600}
 .errbox{border-radius:10px;padding:10px 12px;background:var(--late-soft);color:var(--late);font-size:15px;margin:0 0 12px;font-weight:600}
 .checkline{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px;font-size:15px}
 .checkline input{width:22px;height:22px;margin-top:1px;flex:none}
@@ -672,6 +673,13 @@ async function initCloud(){
   if(!CLOUD) return;
   const c=clientCloud();
   let sess=null;
+  let nuovoAvvio=true; try{ nuovoAvvio=sessionStorage.getItem(RKEY_SESS)!=='1'; }catch(e){}
+  if(lsGet(RKEY)==='0' && nuovoAvvio){
+    try{ if(c) await conTimeout(c.auth.signOut({scope:'local'}),4000); }catch(e){}
+    try{ localStorage.removeItem('medicair.sessione'); localStorage.removeItem(UKEY); }catch(e){}
+    serveLogin=true; return;
+  }
+  try{ sessionStorage.setItem(RKEY_SESS,'1'); }catch(e){}
   if(c){ try{ const r=await conTimeout(c.auth.getSession(),6000); sess=r&&r.data&&r.data.session; }catch(e){} }
   if(sess && sess.user){ usaUtente(sess.user); await Promise.all([scarica(),controllaResponsabile()]); return; }
   // senza rete: si continua con l'ultimo utente, si sincronizza appena torna il campo
@@ -756,19 +764,23 @@ function testoSync(){
   return {ok:`Salvato online${ora?' alle '+ora:''}`, attesa:'Salvataggio online in corso…', offline:'Senza internet: salvato sul telefono, verrà inviato appena torna il campo', errore:'Salvataggio online non riuscito, riprovo più tardi', nodb:'ATTENZIONE: database online non configurato, i dati sono solo su questo telefono', permessi:'ATTENZIONE: il server rifiuta il salvataggio (permessi), i dati sono solo su questo telefono', locale:''}[statoSync]||'';
 }
 function aggiornaSyncUI(){ document.querySelectorAll('[data-sync]').forEach(el=>{el.textContent=testoSync()}); }
+const RKEY='medicair.ricordami', RKEY_EMAIL='medicair.ricordaEmail', RKEY_SESS='medicair.sessioneAttiva';
+let uscitoOra=false; try{ uscitoOra=sessionStorage.getItem('medicair.uscito')==='1'; sessionStorage.removeItem('medicair.uscito'); }catch(e){}
 function mostraLogin(msg){
   const box=document.createElement('div'); box.className='login'; box.id='login';
   box.innerHTML=`<form class="login-in" id="login-form" autocomplete="on">
     ${LOGO.startsWith('data:')?`<img src="${LOGO}" alt="MedicAir People">`:'<h1>Medic Air</h1>'}
     <h2>Accedi</h2>
-    <label class="field"><span>Email</span><input type="email" id="lg-email" autocomplete="username" required inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+    <label class="field"><span>Email</span><input type="email" id="lg-email" value="${esc(lsGet(RKEY_EMAIL)||'')}" autocomplete="username" required inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
     <label class="field"><span>Password</span><input type="password" id="lg-pass" autocomplete="current-password" required></label>
-    <div id="lg-err">${msg?`<div class="errbox">${esc(msg)}</div>`:''}</div>
+    <label class="checkline"><input type="checkbox" id="lg-ricorda" ${lsGet(RKEY)==='0'?'':'checked'}><span>Ricordami su questo telefono</span></label>
+    <div id="lg-err">${msg?`<div class="errbox">${esc(msg)}</div>`:(uscitoOra?`<div class="okbox">Sei uscito dall’account. I tuoi dati restano salvati online: li ritrovi rientrando con la tua email e password.</div>`:'')}</div>
     <button class="btn primary block" type="submit" id="lg-btn">Entra</button>
     <p class="hint" style="margin-top:14px;text-align:center">L’account te lo crea il responsabile. Se hai dimenticato la password, chiedi a lui di reimpostarla.</p>
     <div class="credit">Software sviluppato e creato da Nicola Giuntoni<span class="ver">Versione ${esc(versioneApp)}</span></div>
   </form>`;
   document.body.appendChild(box);
+  setTimeout(()=>{const em=$('#lg-email'); (em&&em.value?$('#lg-pass'):em)?.focus()},150);
   $('#login-form').addEventListener('submit',async e=>{
     e.preventDefault();
     const btn=$('#lg-btn'), err=$('#lg-err');
@@ -780,6 +792,10 @@ function mostraLogin(msg){
       const r=await conTimeout(c.auth.signInWithPassword({email,password:pass}),15000);
       if(!r) throw new Error('timeout');
       if(r.error){ const em=r.error.message||''; err.innerHTML=`<div class="errbox">${/not confirmed/i.test(em)?'Questo account non è ancora confermato. Il responsabile può reimpostare la password dalla sezione Admin.':/invalid/i.test(em)?'Email o password sbagliate. Attenzione a maiuscole e minuscole.':'Accesso non riuscito: '+esc(em)}</div>`; return; }
+      { const ric=!!($('#lg-ricorda')&&$('#lg-ricorda').checked);
+        lsSet(RKEY,ric?'1':'0');
+        if(ric) lsSet(RKEY_EMAIL,email); else { try{localStorage.removeItem(RKEY_EMAIL)}catch(e){} }
+        try{ sessionStorage.setItem(RKEY_SESS,'1'); }catch(e){} }
       usaUtente(r.data.user); btn.textContent='Scarico i tuoi pazienti…';
       await Promise.all([scarica(),controllaResponsabile()]);
       serveLogin=false; box.remove(); ui.tab='giro'; ui.day=todayISO(); render();
@@ -1061,7 +1077,7 @@ async function esci(forza){
   }
   try{ const c=clientCloud(); if(c) await conTimeout(c.auth.signOut(),5000); }catch(e){}
   // i dati del telefono NON si cancellano: servono se il salvataggio online non è andato a buon fine
-  try{ localStorage.removeItem(UKEY); }catch(e){}
+  try{ localStorage.removeItem(UKEY); sessionStorage.removeItem(RKEY_SESS); sessionStorage.setItem('medicair.uscito','1'); }catch(e){}
   location.reload();
 }
 function datiLocali(){
@@ -2292,7 +2308,7 @@ const A={
   'gas-piu':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.min(20,(+o.textContent||0)+1)},
   'gas-meno':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.max(0,(+o.textContent||0)-1)},
   'sync-ora':async()=>{statoSync='attesa';aggiornaSyncUI();await scarica();if(S._dirty)await invia();render();toast(testoSync()||'Fatto.')},
-  esci:()=>{openSheet(`<h2>Uscire dall’account?</h2><p class="lead">I tuoi dati restano salvati online. Da questo telefono vengono tolti finché non rientri.</p><div class="acts"><button class="act" style="border-color:var(--late);color:var(--late)" data-act="esci-ok">Esci</button><button class="act" data-act="chiudi">Annulla</button></div>`)},
+  esci:()=>{openSheet(`<h2>Uscire dall’account?</h2><p class="lead">I tuoi dati restano salvati online: rientrando con la tua email e password ritrovi pazienti, giro e storico come li hai lasciati.${lsGet(RKEY)!=='0'&&lsGet(RKEY_EMAIL)?' L’email resta già scritta nella schermata di accesso.':''}</p><div class="acts"><button class="act" style="border-color:var(--late);color:var(--late)" data-act="esci-ok">Esci</button><button class="act" data-act="chiudi">Annulla</button></div>`)},
   'esci-ok':()=>esci(),
   loc:b=>{ui.loc=b.dataset.l;ui.locDay=ui.day;render();window.scrollTo(0,0);const c=document.querySelector('.lchip[aria-pressed="true"]');if(c&&c.scrollIntoView)c.scrollIntoView({inline:'center',block:'nearest'})},
   'mostra-fatti':()=>{ui.showDone=!ui.showDone;render()},
