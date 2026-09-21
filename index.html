@@ -1635,6 +1635,36 @@ function sheetReso(id){
   <label class="field"><span>Nota</span><input id="rs-nota" value="${esc(r.nota||'')}" placeholder="es. ricoverato, non serve più, chiamare la figlia" autocomplete="off"></label>
   <button class="btn primary block" data-act="reso-ok" data-id="${p.id}">${p.reso?'Salva':'Metti nei resi'}</button>`);
 }
+/* ---------- reso rapido (paziente non in archivio) ---------- */
+function sheetResoNuovo(nome,daGiro){
+  const D=ui.day<todayISO()?todayISO():ui.day;
+  openSheet(`<h2>Reso rapido</h2><p class="lead">Per bombole da ritirare da qualcuno che non è in archivio. Non entra nel giro delle consegne.</p>
+  <label class="field"><span>Nome</span><input id="rn-nome" value="${esc(String(nome||'').toUpperCase())}" autocapitalize="characters" autocomplete="off"></label>
+  <label class="field"><span>Località</span><input id="rn-loc" autocapitalize="characters" autocomplete="off"></label>
+  <label class="field"><span>Bombole da ritirare</span><input id="rs-cnt" autocapitalize="characters" autocomplete="off"><span class="quick">${ORDINE_CNT.map(c=>`<button type="button" data-act="rs-set-cnt" data-v="${c}">${c}</button>`).join('')}</span></label>
+  <label class="field"><span>Giorno del ritiro${daGiro?'':', se lo sai'}</span><input type="date" id="rn-ritiro" value="${daGiro?D:''}" min="${todayISO()}"></label>
+  <p class="hint">Con la data compare nel giro di quel giorno sotto “Resi da ritirare”. Senza data resta solo nella sezione Resi.</p>
+  <label class="field"><span>Nota</span><input id="rn-nota" placeholder="es. chiamare prima, bombole in garage" autocomplete="off"></label>
+  <div id="rn-err"></div>
+  <button class="btn primary block" data-act="reso-nuovo-ok">Crea reso</button>`,
+  ()=>setTimeout(()=>{const i=$(nome?'#rn-loc':'#rn-nome');i&&i.focus()},60));
+}
+function salvaResoNuovo(){
+  const nome=$('#rn-nome').value.trim().toUpperCase(), loc=$('#rn-loc').value.trim().toUpperCase();
+  const cnt=cleanCnt($('#rs-cnt').value), ritiro=$('#rn-ritiro').value, nota=$('#rn-nota').value.trim();
+  const e=[]; if(!nome) e.push('il nome'); if(!loc) e.push('la località');
+  if(e.length){$('#rn-err').innerHTML=`<div class="errbox">Manca ${e.join(' e ')}.</div>`;return}
+  const T=todayISO();
+  const p={id:uid(),nome,localita:loc,cnt,fg:null,giorno:'',ultima:'',prossima:'',note:'',spostata:null,
+    reso:{dal:T,ritiro:validISO(ritiro)?ritiro:'',ritirato:'',cnt,nota}, resoRapido:true};
+  S.pazienti.push(p);
+  logOp({tipo:'reso', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.reso.cnt, data:T, a:p.reso.ritiro, prima:null});
+  save(); closeSheet();
+  if(p.reso.ritiro && ui.tab==='giro') ui.day=p.reso.ritiro;
+  render();
+  toast(`Reso di ${nome} creato${p.reso.ritiro?`, ritiro ${fmtShort(p.reso.ritiro)}`:''}.`);
+}
+
 function sheetAzioniReso(id){
   const p=byId(id); if(!p||!p.reso) return;
   openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${esc(p.localita)}. Reso da ritirare: ${esc(p.reso.cnt||'?')}${p.reso.nota?`. ${esc(p.reso.nota)}`:''}</p>
@@ -1648,12 +1678,12 @@ function sheetAzioniReso(id){
   </div>`);
 }
 function sheetResoCerca(){
-  openSheet(`<h2>Metti nei resi</h2><p class="lead">Cerca il paziente.</p><div class="field"><input id="rs-q" type="search" placeholder="Nome o località" autocomplete="off"></div><div id="rs-res" class="res"></div>`,()=>setTimeout(()=>{const i=$('#rs-q');i&&i.focus()},60));
+  openSheet(`<h2>Metti nei resi</h2><p class="lead">Cerca il paziente, oppure crea subito un reso per chi non è in archivio.</p><button class="btn primary block" data-act="reso-nuovo" style="margin-bottom:12px">+ Reso rapido (non in archivio)</button><div class="field"><input id="rs-q" type="search" placeholder="Nome o località" autocomplete="off"></div><div id="rs-res" class="res"></div>`,()=>setTimeout(()=>{const i=$('#rs-q');i&&i.focus()},60));
 }
 function resoResHTML(q){
   const n=normTxt(q); if(!n) return '';
   const L=S.pazienti.filter(p=>!p.reso&&normTxt(p.nome+' '+p.localita).includes(n)).sort((a,b)=>a.nome.localeCompare(b.nome)).slice(0,40);
-  if(!L.length) return '<p class="hint" style="margin-top:10px">Nessun paziente trovato.</p>';
+  if(!L.length) return `<p class="hint" style="margin-top:10px">Nessun paziente trovato.</p><button class="btn block" data-act="reso-nuovo" data-nome="${esc(q)}">Crea reso rapido per “${esc(q)}”</button>`;
   return L.map(p=>`<div class="res-row"><div><div class="nome">${esc(p.nome)}</div><div class="meta">${esc(p.localita)}, CNT ${esc(p.cnt||'?')}</div></div><button class="btn" data-act="reso" data-id="${p.id}">Scegli</button></div>`).join('');
 }
 
@@ -1819,7 +1849,7 @@ function sheetAggiungi(){
   ${gruppiHTML(D)}
   <div class="field"><input id="add-q" type="search" placeholder="Nome, località o CNT" autocomplete="off"></div>
   <div id="add-res" class="res"></div>
-  <div style="margin-top:14px"><button class="btn block" data-act="nuovo-giro">Crea un paziente nuovo</button></div>`, r=>{const an=$('#add-nota'); an&&an.addEventListener('input',()=>{addNota=an.value.trim().toUpperCase()}); setTimeout(()=>{const i=$('#add-q');i&&i.focus()},60)});
+  <div style="margin-top:14px"><button class="btn block" data-act="nuovo-giro">Crea un paziente nuovo</button><button class="btn block" style="margin-top:8px" data-act="reso-nuovo" data-dagiro="1">Crea un reso rapido</button></div>`, r=>{const an=$('#add-nota'); an&&an.addEventListener('input',()=>{addNota=an.value.trim().toUpperCase()}); setTimeout(()=>{const i=$('#add-q');i&&i.focus()},60)});
 }
 function addResHTML(q){
   const n=normTxt(q);
@@ -2314,6 +2344,8 @@ const A={
   'mostra-fatti':()=>{ui.showDone=!ui.showDone;render()},
   reso:b=>sheetReso(b.dataset.id),
   'reso-cerca':()=>sheetResoCerca(),
+  'reso-nuovo':b=>sheetResoNuovo(b.dataset.nome||(($('#add-q')||{}).value)||'',!!b.dataset.dagiro),
+  'reso-nuovo-ok':()=>salvaResoNuovo(),
   'rs-set-cnt':b=>{$('#rs-cnt').value=b.dataset.v},
   'edit-fg':b=>sheetEditFg(b.dataset.id),
   'edit-cnt':b=>sheetEditCnt(b.dataset.id),
