@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <style>
 :root{
@@ -1233,6 +1233,8 @@ function renderGiro(){
   const pend=[...g.senzaData,...g.arretrati,...g.delGiorno,...g.extra,...g.resi];
   const rim=rimandatiDa(D);
   const car=riepilogo([...g.senzaData,...g.arretrati,...g.delGiorno,...g.extra,...g.fatti.filter(h=>h.tipo==='consegna')]);
+  const bombDaFare=riepilogo([...g.senzaData,...g.arretrati,...g.delGiorno,...g.extra]).totale;
+  const bombFatte=riepilogo(g.fatti.filter(h=>h.tipo==='consegna')).totale;
   const mon=addDays(D,-((wd(D)+6)%7));
   const days=[];
   for(let i=0;i<6;i++){const d=addDays(mon,i);const c=contaGiorno(d,idx);if(i===5 && !c.n && d!==D) continue;days.push({d,...c})}
@@ -1250,8 +1252,8 @@ function renderGiro(){
     <div class="week">${days.map(x=>`<button class="wd${x.d===D?' sel':''}${x.d===T?' today':''}${x.late?' has-late':''}" data-act="vai" data-d="${x.d}" aria-label="${fmtLong(x.d)}${meteo[x.d]?', '+descMeteo(meteo[x.d].c)+', massima '+meteo[x.d].max+' gradi':''}"><span class="wd-in"><span class="wd-dt"><span class="d1">${GB[wd(x.d)]}</span><span class="d2">${dm(x.d).d}</span></span>${meteo[x.d]?`<span class="wx"><i>${iconaMeteo(meteo[x.d].c)}</i><b>${meteo[x.d].max}°</b></span>`:''}</span></button>`).join('')}</div>
   </header>`;
   h+=`<div class="stats">
-    <div class="stat"><b>${pend.length}</b><span>da fare</span></div>
-    <div class="stat"><b>${g.fatti.length}</b><span>consegnati</span></div>
+    <div class="stat"><b>${bombDaFare}</b><span>da fare</span></div>
+    <div class="stat"><b>${bombFatte}</b><span>consegnati</span></div>
     <button class="stat stat-btn${rim.length?' warn':''}" data-act="rimandati"><b>${rim.length}</b><span>rimandati</span></button>
     <button class="stat stat-btn" data-act="carico"><b>${car.totale}</b><span>bombole</span></button>
   </div>`;
