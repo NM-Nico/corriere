@@ -782,7 +782,7 @@ function mostraLogin(msg){
   box.innerHTML=`<form class="login-in" id="login-form" autocomplete="on">
     ${LOGO.startsWith('data:')?`<img src="${LOGO}" alt="MedicAir People">`:'<h1>Medic Air</h1>'}
     <h2>Accedi</h2>
-    <label class="field"><span>Email</span><input type="email" id="lg-email" autocomplete="username" required inputmode="email"></label>
+    <label class="field"><span>Email</span><input type="email" id="lg-email" autocomplete="username" required inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
     <label class="field"><span>Password</span><input type="password" id="lg-pass" autocomplete="current-password" required></label>
     <div id="lg-err">${msg?`<div class="errbox">${esc(msg)}</div>`:''}</div>
     <button class="btn primary block" type="submit" id="lg-btn">Entra</button>
@@ -800,7 +800,7 @@ function mostraLogin(msg){
     try{
       const r=await conTimeout(c.auth.signInWithPassword({email,password:pass}),15000);
       if(!r) throw new Error('timeout');
-      if(r.error){ err.innerHTML=`<div class="errbox">${/invalid/i.test(r.error.message||'')?'Email o password sbagliate.':'Accesso non riuscito: '+esc(r.error.message||'')}</div>`; return; }
+      if(r.error){ const em=r.error.message||''; err.innerHTML=`<div class="errbox">${/not confirmed/i.test(em)?'Questo account non è ancora confermato. Il responsabile può reimpostare la password dalla sezione Admin.':/invalid/i.test(em)?'Email o password sbagliate. Attenzione a maiuscole e minuscole.':'Accesso non riuscito: '+esc(em)}</div>`; return; }
       usaUtente(r.data.user); btn.textContent='Scarico i tuoi pazienti…';
       await Promise.all([scarica(),controllaResponsabile()]);
       serveLogin=false; box.remove(); ui.tab='giro'; ui.day=todayISO(); render();
@@ -855,8 +855,9 @@ async function chiamaAdmin(body){
   if(!r) throw new Error('Il server non risponde.');
   if(r.error){
     let m=r.error.message||'Errore';
-    try{ const j=await r.error.context.json(); if(j&&j.error) m=j.error; }catch(e){}
-    if(/Failed to send|not found|404|FunctionsFetchError|FunctionsRelayError/i.test(m)) m='NOFN';
+    let st=0; try{ st=r.error.context&&r.error.context.status||0; const j=await r.error.context.json(); if(j) m=j.error||j.message||j.msg||m; }catch(e){}
+    if(st===401&&/jwt/i.test(m)) m='Supabase blocca la chiamata (Invalid JWT): disattiva "Verify JWT" nelle impostazioni della funzione admin-corrieri.';
+    if(st===404||/Failed to send|Requested function was not found|FunctionsFetchError|FunctionsRelayError/i.test(m)) m='NOFN';
     throw new Error(m);
   }
   if(r.data&&r.data.error) throw new Error(r.data.error);
@@ -925,19 +926,20 @@ function sheetCorriereForm(id){
   <p class="lead">${x?'Cambia i dati dell’account. La password si cambia solo se ne scrivi una nuova.':'Crea l’account: il corriere entra nell’app con questa email e password.'}</p>
   <div class="two"><label class="field"><span>Nome</span><input id="ad-nome" value="${esc(x&&x.nome||'')}" autocapitalize="words" autocomplete="off"></label>
   <label class="field"><span>Cognome</span><input id="ad-cognome" value="${esc(x&&x.cognome||'')}" autocapitalize="words" autocomplete="off"></label></div>
-  <label class="field"><span>Email</span><input id="ad-email" type="email" value="${esc(x&&x.email||'')}" autocomplete="off" autocapitalize="none"></label>
-  <label class="field pw-row"><span>${x?'Nuova password (lascia vuoto per non cambiarla)':'Password'}</span><input id="ad-pw" type="text" autocomplete="new-password" autocapitalize="none" placeholder="${x?'':'almeno 6 caratteri'}"></label>
+  <label class="field"><span>Email</span><input id="ad-email" type="email" value="${esc(x&&x.email||'')}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+  <label class="field pw-row"><span>${x?'Nuova password (lascia vuoto per non cambiarla)':'Password'}</span><input id="ad-pw" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${x?'':'almeno 6 caratteri'}"></label>
   <label class="checkline"><input type="checkbox" id="ad-resp" ${x&&x.responsabile?'checked':''} ${me?'disabled':''}><span>Responsabile: vede la sezione Admin e i giri di tutti${me?' (non puoi toglierlo a te stesso)':''}</span></label>
   <div id="ad-err"></div>
   <button class="btn primary block" id="ad-btn" data-act="adm-salva" data-id="${x?x.id:''}">${x?'Salva modifiche':'Crea corriere'}</button>`);
 }
 async function salvaCorriere(btn){
   const id=btn.dataset.id, err=$('#ad-err');
-  const nome=tc($('#ad-nome').value), cognome=tc($('#ad-cognome').value), email=$('#ad-email').value.trim().toLowerCase(), pw=$('#ad-pw').value, resp=$('#ad-resp').checked;
+  const nome=tc($('#ad-nome').value), cognome=tc($('#ad-cognome').value), email=$('#ad-email').value.trim().toLowerCase(), pw=$('#ad-pw').value.trim(), resp=$('#ad-resp').checked;
   const x=id?(ADM.utenti||[]).find(u=>u.id===id):null;
   if(!nome||!cognome){err.innerHTML='<div class="errbox">Scrivi nome e cognome.</div>';return}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.innerHTML='<div class="errbox">Email non valida.</div>';return}
   if((!id||pw)&&pw.length<6){err.innerHTML='<div class="errbox">La password deve avere almeno 6 caratteri.</div>';return}
+  if(/\s/.test(pw)){err.innerHTML='<div class="errbox">La password non può contenere spazi.</div>';return}
   const body=id?{azione:'modifica',id,nome,cognome,responsabile:resp}:{azione:'crea',nome,cognome,email,password:pw,responsabile:resp};
   if(id&&x&&email!==(x.email||'').toLowerCase()) body.email=email;
   if(id&&pw) body.password=pw;
@@ -947,7 +949,11 @@ async function salvaCorriere(btn){
     let m=e.message||''; if(/already|registered|exists/i.test(m)) m='Esiste già un account con questa email.'; else if(m==='NOFN') m='La funzione admin-corrieri non è attiva su Supabase.';
     err.innerHTML=`<div class="errbox">${esc(m)}</div>`; return; }
   if(id===utente.id){ utente.nome=nome; utente.cognome=cognome; if(body.email) utente.email=email; lsSet(UKEY,JSON.stringify(utente)); if(!inVistaAltrui()){S.profilo={nome,cognome};save();} }
-  closeSheet(); toast(id?`${nome} ${cognome}: dati aggiornati${pw?', password cambiata':''}.`:`${nome} ${cognome} creato. Può entrare con ${email}.`);
+  if(!id||pw||body.email){
+    openSheet(`<h2>${id?'Dati aggiornati':'Corriere creato'}</h2><p class="lead">Credenziali di <strong>${esc(nome+' '+cognome)}</strong> per entrare nell’app. Maiuscole e minuscole contano.</p>
+    <div class="card" style="margin:0 0 12px"><p style="margin:0 0 6px">Email: <strong style="font-family:monospace;font-size:16px;word-break:break-all">${esc(email)}</strong></p>${pw?`<p style="margin:0">Password: <strong style="font-family:monospace;font-size:16px;word-break:break-all">${esc(pw)}</strong></p>`:'<p style="margin:0">Password: invariata</p>'}</div>
+    <button class="btn primary block" data-act="chiudi">Ok</button>`);
+  } else { closeSheet(); toast(`${nome} ${cognome}: dati aggiornati.`); }
   ADM.utenti=null; caricaAdmin();
 }
 function sheetEliminaCorriere(id){
