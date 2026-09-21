@@ -125,6 +125,15 @@ input,select,textarea{font:inherit;color:inherit}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
 .nav-in{max-width:760px;margin:0 auto;display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
 .prof-head{display:flex;align-items:center;gap:14px}
+.nav-in.molti button span{font-size:10.5px}
+.nav-in.molti button svg{width:22px;height:22px}
+.adm-row{display:flex;gap:12px;align-items:flex-start}
+.adm-row .avatar{width:44px;height:44px;font-size:17px}
+.adm-row .nm{font:700 19px/1.15 var(--f-cond)}
+.adm-row .mt{color:var(--muted);font-size:13.5px;margin-top:2px;overflow-wrap:anywhere}
+.adm-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.adm-acts .btn{min-height:40px;padding:0 12px;font-size:14px}
+.tag.adm{background:#FDE8D7;color:#9A3412}
 .avatar{flex:none;width:58px;height:58px;border-radius:50%;background:var(--oxy);color:#fff;display:grid;place-items:center;font:700 23px/1 var(--f-cond);letter-spacing:.02em}
 .prof-head .pn{font:700 22px/1.1 var(--f-cond)}
 .prof-head .pm{color:var(--muted);font-size:14px;margin-top:3px;overflow-wrap:anywhere}
@@ -819,7 +828,7 @@ async function cambiaVista(id,email){
 function nomeCorriere(email){return String(email||'').split('@')[0]||email||'corriere'}
 function nomeCompleto(o){return o&&o.nome?(o.nome+' '+(o.cognome||'')).trim():''}
 function nomeVettore(){
-  if(inVistaAltrui()) return nomeCompleto(S.profilo)||titolo(nomeCorriere(vista.email));
+  if(inVistaAltrui()){const a=(ADM.utenti||[]).find(x=>x.id===vista.id); return nomeCompleto(a)||nomeCompleto(S.profilo)||titolo(nomeCorriere(vista.email));}
   return nomeCompleto(utente)||titolo(nomeCorriere(utente&&utente.email));
 }
 function iniziali(){const a=(utente.nome||'')[0]||'', b=(utente.cognome||'')[0]||''; return ((a+b)||(utente.email||'?')[0]).toUpperCase()}
@@ -838,6 +847,131 @@ function formNomeHTML(){
   <label class="field"><span>Cognome</span><input id="pf-cognome" value="${esc(utente.cognome||'')}" autocomplete="family-name" autocapitalize="words"></label>
   <div id="pf-err"></div>`;
 }
+/* ---------- sezione Admin (solo responsabili) ---------- */
+const ADM={carico:false,err:'',fnErr:'',utenti:null,stat:{},ts:0};
+async function chiamaAdmin(body){
+  const c=clientCloud(); if(!c) throw new Error('Non riesco a collegarmi al server.');
+  const r=await conTimeout(c.functions.invoke('admin-corrieri',{body}),20000);
+  if(!r) throw new Error('Il server non risponde.');
+  if(r.error){
+    let m=r.error.message||'Errore';
+    try{ const j=await r.error.context.json(); if(j&&j.error) m=j.error; }catch(e){}
+    if(/Failed to send|not found|404|FunctionsFetchError|FunctionsRelayError/i.test(m)) m='NOFN';
+    throw new Error(m);
+  }
+  if(r.data&&r.data.error) throw new Error(r.data.error);
+  return r.data||{};
+}
+async function caricaAdmin(){
+  if(ADM.carico) return; ADM.carico=true; ADM.err=''; ADM.fnErr='';
+  if(ui.tab==='admin') render();
+  const c=clientCloud(); const T=todayISO(), mese=T.slice(0,7);
+  const stat={};
+  const pStat=(async()=>{
+    const [st,sm]=await Promise.all([
+      conTimeout(c.from('stato').select(senzaEmail?'user_id,dati,aggiornato':'user_id,email,dati,aggiornato'),15000),
+      conTimeout(c.from('storico_mesi').select('user_id,mese,voci').eq('mese',mese),15000)
+    ]);
+    if(!st||st.error||!sm||sm.error) throw new Error('stat');
+    const voci={}; for(const r of sm.data) voci[r.user_id]=(voci[r.user_id]||[]).concat(r.voci||[]);
+    const salva=S;
+    try{
+      for(const r of st.data){
+        S={...r.dati, storico:voci[r.user_id]||[]}; S.pazienti=S.pazienti||[];
+        const g=giroDi(T), pf=r.dati&&r.dati.profilo;
+        stat[r.user_id]={email:r.email||'',profilo:pf||null,
+          fare:riepilogo([...g.senzaData,...g.arretrati,...g.delGiorno,...g.extra]).totale,
+          fatti:riepilogo(g.fatti.filter(h=>h.tipo==='consegna')).totale,
+          arr:g.arretrati.length, paz:S.pazienti.length, agg:r.aggiornato};
+      }
+    } finally { S=salva; }
+  })();
+  const pFn=chiamaAdmin({azione:'lista'});
+  const [a,b]=await Promise.allSettled([pStat,pFn]);
+  ADM.stat=stat;
+  if(b.status==='fulfilled') ADM.utenti=b.value.utenti||[];
+  else { ADM.fnErr=b.reason&&b.reason.message||'errore';
+    ADM.utenti=Object.entries(stat).map(([id,x])=>({id,email:x.email||(id===utente.id?utente.email:''),nome:x.profilo&&x.profilo.nome||'',cognome:x.profilo&&x.profilo.cognome||'',responsabile:id===utente.id,soloStat:true})); }
+  if(a.status==='rejected'&&b.status==='rejected') ADM.err='Non riesco a caricare i corrieri. Controlla internet e riprova.';
+  ADM.ts=Date.now(); ADM.carico=false;
+  if(ui.tab==='admin') render();
+}
+function iniz(x){const a=(x.nome||'')[0]||'', b=(x.cognome||'')[0]||'';return ((a+b)||(x.email||'?')[0]||'?').toUpperCase()}
+function renderAdmin(){
+  if(!ADM.utenti&&!ADM.carico&&!ADM.err) setTimeout(caricaAdmin,0);
+  const ora=t=>{if(!t) return 'mai';const d=new Date(t);return (d.toDateString()===new Date().toDateString()?'oggi ':d.toLocaleDateString('it-IT',{day:'numeric',month:'short'})+' ')+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})};
+  let h=`<header class="page-h"><h1>Admin</h1><span class="sub">Gestione corrieri</span></header>
+  <div class="card" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="adm-nuovo" ${ADM.fnErr?'disabled':''}>+ Nuovo corriere</button><button class="btn" data-act="adm-ricarica">${ADM.carico?'Carico…':'Aggiorna'}</button></div>`;
+  if(ADM.fnErr) h+=`<div class="storage-warn">${ADM.fnErr==='NOFN'?'La funzione <b>admin-corrieri</b> non è ancora attiva su Supabase: finché non la pubblichi puoi solo vedere e aprire i giri, non creare, modificare o eliminare account.':'Gestione account non disponibile: '+esc(ADM.fnErr)}</div>`;
+  if(ADM.err) return h+`<div class="errbox" style="margin:10px 14px">${esc(ADM.err)}</div>`;
+  if(!ADM.utenti) return h+`<p class="hint" style="margin:14px">Carico i corrieri…</p>`;
+  const L=[...ADM.utenti].sort((a,b)=>(a.id===utente.id?-1:b.id===utente.id?1:0)||(nomeCompleto(a)||a.email).localeCompare(nomeCompleto(b)||b.email));
+  h+=L.map(x=>{const st=ADM.stat[x.id]; const me=x.id===utente.id; const aperto=vista&&vista.id===x.id;
+    return `<div class="card"><div class="adm-row"><div class="avatar">${esc(iniz(x))}</div><div style="min-width:0;flex:1">
+      <div class="nm">${esc(nomeCompleto(x)||nomeCorriere(x.email))}${me?' (tu)':''}</div>
+      <div class="mt">${esc(x.email||'')}</div>
+      <div class="mt">${x.responsabile?'<span class="tag adm">Responsabile</span>':'<span class="tag ok">Vettore</span>'}${aperto?'<span class="tag ag">giro aperto</span>':''}</div>
+      ${st?`<div class="mt">Oggi: ${st.fare} bombole da fare, ${st.fatti} consegnate${st.arr?`, <span class="lt">${st.arr} arretrati</span>`:''}. ${st.paz} pazienti</div><div class="mt">Ultimo salvataggio ${esc(ora(st.agg))}</div>`:`<div class="mt">Non ha ancora usato l’app.</div>`}
+      ${x.ultimoAccesso!==undefined?`<div class="mt">Ultimo accesso ${esc(ora(x.ultimoAccesso))}</div>`:''}
+      <div class="adm-acts">${st||me?`<button class="btn${aperto?'':' primary'}" data-act="apri-corriere" data-id="${x.id}" data-email="${esc(x.email||'')}">${aperto?'Giro aperto':'Apri giro'}</button>`:''}
+      ${x.soloStat?'':`<button class="btn" data-act="adm-modifica" data-id="${x.id}">Modifica</button>${me?'':`<button class="btn danger" data-act="adm-elimina" data-id="${x.id}">Elimina</button>`}`}</div>
+    </div></div></div>`}).join('');
+  return h;
+}
+function sheetCorriereForm(id){
+  const x=id?(ADM.utenti||[]).find(u=>u.id===id):null; if(id&&!x) return;
+  const me=x&&x.id===utente.id;
+  openSheet(`<h2>${x?'Modifica '+esc(nomeCompleto(x)||x.email):'Nuovo corriere'}</h2>
+  <p class="lead">${x?'Cambia i dati dell’account. La password si cambia solo se ne scrivi una nuova.':'Crea l’account: il corriere entra nell’app con questa email e password.'}</p>
+  <div class="two"><label class="field"><span>Nome</span><input id="ad-nome" value="${esc(x&&x.nome||'')}" autocapitalize="words" autocomplete="off"></label>
+  <label class="field"><span>Cognome</span><input id="ad-cognome" value="${esc(x&&x.cognome||'')}" autocapitalize="words" autocomplete="off"></label></div>
+  <label class="field"><span>Email</span><input id="ad-email" type="email" value="${esc(x&&x.email||'')}" autocomplete="off" autocapitalize="none"></label>
+  <label class="field pw-row"><span>${x?'Nuova password (lascia vuoto per non cambiarla)':'Password'}</span><input id="ad-pw" type="text" autocomplete="new-password" autocapitalize="none" placeholder="${x?'':'almeno 6 caratteri'}"></label>
+  <label class="checkline"><input type="checkbox" id="ad-resp" ${x&&x.responsabile?'checked':''} ${me?'disabled':''}><span>Responsabile: vede la sezione Admin e i giri di tutti${me?' (non puoi toglierlo a te stesso)':''}</span></label>
+  <div id="ad-err"></div>
+  <button class="btn primary block" id="ad-btn" data-act="adm-salva" data-id="${x?x.id:''}">${x?'Salva modifiche':'Crea corriere'}</button>`);
+}
+async function salvaCorriere(btn){
+  const id=btn.dataset.id, err=$('#ad-err');
+  const nome=tc($('#ad-nome').value), cognome=tc($('#ad-cognome').value), email=$('#ad-email').value.trim().toLowerCase(), pw=$('#ad-pw').value, resp=$('#ad-resp').checked;
+  const x=id?(ADM.utenti||[]).find(u=>u.id===id):null;
+  if(!nome||!cognome){err.innerHTML='<div class="errbox">Scrivi nome e cognome.</div>';return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.innerHTML='<div class="errbox">Email non valida.</div>';return}
+  if((!id||pw)&&pw.length<6){err.innerHTML='<div class="errbox">La password deve avere almeno 6 caratteri.</div>';return}
+  const body=id?{azione:'modifica',id,nome,cognome,responsabile:resp}:{azione:'crea',nome,cognome,email,password:pw,responsabile:resp};
+  if(id&&x&&email!==(x.email||'').toLowerCase()) body.email=email;
+  if(id&&pw) body.password=pw;
+  btn.disabled=true; btn.textContent='Salvo…'; err.innerHTML='';
+  try{ await chiamaAdmin(body); }
+  catch(e){ btn.disabled=false; btn.textContent=id?'Salva modifiche':'Crea corriere';
+    let m=e.message||''; if(/already|registered|exists/i.test(m)) m='Esiste già un account con questa email.'; else if(m==='NOFN') m='La funzione admin-corrieri non è attiva su Supabase.';
+    err.innerHTML=`<div class="errbox">${esc(m)}</div>`; return; }
+  if(id===utente.id){ utente.nome=nome; utente.cognome=cognome; if(body.email) utente.email=email; lsSet(UKEY,JSON.stringify(utente)); if(!inVistaAltrui()){S.profilo={nome,cognome};save();} }
+  closeSheet(); toast(id?`${nome} ${cognome}: dati aggiornati${pw?', password cambiata':''}.`:`${nome} ${cognome} creato. Può entrare con ${email}.`);
+  ADM.utenti=null; caricaAdmin();
+}
+function sheetEliminaCorriere(id){
+  const x=(ADM.utenti||[]).find(u=>u.id===id); if(!x||x.id===utente.id) return;
+  const st=ADM.stat[id];
+  openSheet(`<h2>Eliminare ${esc(nomeCompleto(x)||x.email)}?</h2>
+  <p class="lead">L’account viene cancellato e non potrà più entrare.${st?` Vengono cancellati anche i suoi ${st.paz} pazienti e lo storico delle consegne.`:''} Non si può annullare.</p>
+  ${st&&st.paz?`<p class="hint">Se vuoi tenere i suoi pazienti, prima apri il suo giro e scarica un backup da Altro.</p>`:''}
+  <label class="field"><span>Per confermare scrivi ELIMINA</span><input id="el-conf" autocomplete="off" autocapitalize="characters"></label>
+  <div id="el-err"></div>
+  <div class="acts"><button class="act" style="border-color:var(--late);color:var(--late)" data-act="adm-elimina-ok" data-id="${x.id}">Elimina definitivamente</button><button class="act" data-act="chiudi">Annulla</button></div>`);
+}
+async function eliminaCorriere(btn){
+  const id=btn.dataset.id, err=$('#el-err');
+  if(String($('#el-conf').value).trim().toUpperCase()!=='ELIMINA'){err.innerHTML='<div class="errbox">Scrivi ELIMINA per confermare.</div>';return}
+  const x=(ADM.utenti||[]).find(u=>u.id===id);
+  btn.disabled=true; btn.textContent='Elimino…';
+  try{ await chiamaAdmin({azione:'elimina',id}); }
+  catch(e){ btn.disabled=false; btn.textContent='Elimina definitivamente'; err.innerHTML=`<div class="errbox">${esc(e.message==='NOFN'?'La funzione admin-corrieri non è attiva su Supabase.':e.message)}</div>`; return; }
+  if(vista&&vista.id===id) await cambiaVista(utente.id,utente.email);
+  closeSheet(); toast(`${x?nomeCompleto(x)||x.email:'Corriere'} eliminato.`);
+  ADM.utenti=null; caricaAdmin();
+}
+
 function sheetPrimoProfilo(){
   if(!CLOUD||!utente) return;
   openSheet(`<h2>Benvenuto in Medic Air</h2><p class="lead">Prima di iniziare scrivi il tuo nome e cognome: comparirà in alto nell’app come vettore e al responsabile.</p>
@@ -1245,13 +1379,15 @@ function navHTML(){
     ['vacanza','Vacanza','<path d="M12 3a9 9 0 00-9 9h18a9 9 0 00-9-9zM12 12v9M9 21h6M12 3c-2.5 2.5-3.5 5.5-3.5 9M12 3c2.5 2.5 3.5 5.5 3.5 9"/>'],
     ['resi','Resi','<path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5zM3 7.5L12 12l9-4.5M12 12v9"/>'],
     ['storico','Storico','<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2"/>'],
+    ...(CLOUD&&utente?[['profilo','Profilo','<path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM3.5 21a8.5 8.5 0 0117 0"/>']]:[]),
     ['altro','Altro','<path d="M4 6h16M4 12h16M4 18h16"/>'],
-    ...(CLOUD&&utente?[['profilo','Profilo','<path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM3.5 21a8.5 8.5 0 0117 0"/>']]:[])
+    ...(CLOUD&&utente&&utente.admin?[['admin','Admin','<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>']]:[])
   ];
   return it.map(([k,l,svg])=>`<button data-act="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg><span>${l}${k==='pazienti'&&nv?`<span class="badge">${nv}</span>`:''}${k==='resi'&&nr?`<span class="badge or">${nr}</span>`:''}</span></button>`).join('');
 }
 function render(){
   $('#nav').innerHTML=navHTML();
+  {const ni=$('#nav .nav-in')||$('#nav'); ni.classList.toggle('molti',(ni.children.length||0)>=8);}
   $('#fab').hidden = ui.tab!=='giro';
   const app=$('#app');
   document.body.classList.toggle('altrui',inVistaAltrui());
@@ -1261,6 +1397,7 @@ function render(){
   else if(ui.tab==='vacanza') app.innerHTML=renderVacanza();
   else if(ui.tab==='resi') app.innerHTML=renderResi();
   else if(ui.tab==='profilo'&&CLOUD&&utente) app.innerHTML=renderProfilo();
+  else if(ui.tab==='admin'&&CLOUD&&utente&&utente.admin) app.innerHTML=renderAdmin();
   else app.innerHTML=renderAltro();
   if(inVistaAltrui()) app.insertAdjacentHTML('afterbegin',`<div class="vista-banner"><span>Giro di <strong>${esc(nomeVettore())}</strong></span><button data-act="apri-corriere" data-id="${utente.id}" data-email="${esc(utente.email)}">Torna al mio</button></div>`);
   app.insertAdjacentHTML('beforeend',`<footer class="credit">${CLOUD&&utente?`<span class="ver" data-sync style="margin:0 0 6px">${esc(testoSync())}</span>`:''}Software sviluppato e creato da Nicola Giuntoni<span class="ver">Versione ${esc(versioneApp||'—')}</span></footer>`);
@@ -2149,12 +2286,18 @@ const A={
   'esci-forza':()=>esci(true),
   recupero:()=>sheetRecupero(false),
   'profilo-nome':()=>sheetNomeProfilo(),
+  'adm-ricarica':()=>{ADM.utenti=null;caricaAdmin()},
+  'adm-nuovo':()=>sheetCorriereForm(null),
+  'adm-modifica':b=>sheetCorriereForm(b.dataset.id),
+  'adm-salva':b=>salvaCorriere(b),
+  'adm-elimina':b=>sheetEliminaCorriere(b.dataset.id),
+  'adm-elimina-ok':b=>eliminaCorriere(b),
   'profilo-nome-ok':b=>salvaNomeProfilo(b),
   'profilo-pw':()=>sheetPassword(),
   'profilo-pw-ok':b=>salvaPassword(b),
   'pw-mostra':b=>{const vis=$('#pw-1').type==='password';$('#pw-1').type=$('#pw-2').type=vis?'text':'password';b.textContent=vis?'Nascondi':'Mostra'},
   recupera:b=>recupera(b.dataset.k),
-  corrieri:()=>sheetCorrieri(),
+  corrieri:()=>{ui.tab='admin';window.scrollTo(0,0);render()},
   'apri-corriere':b=>cambiaVista(b.dataset.id,b.dataset.email),
   'gas-piu':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.min(20,(+o.textContent||0)+1)},
   'gas-meno':b=>{const o=$('#gas-'+b.dataset.t);o.textContent=Math.max(0,(+o.textContent||0)-1)},
