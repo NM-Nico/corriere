@@ -183,6 +183,8 @@ input,select,textarea{font:inherit;color:inherit}
 .prof-head{display:flex;align-items:center;gap:14px}
 .nav-in.molti button span{font-size:10.5px}
 .nav-in.molti button svg{width:22px;height:22px}
+.nav-in.pienissima button span{font-size:9.5px}
+.nav-in.pienissima button svg{width:20px;height:20px}
 .adm-row{display:flex;gap:12px;align-items:flex-start}
 .adm-row .avatar{width:44px;height:44px;font-size:17px}
 .adm-row .nm{font:700 19px/1.15 var(--f-cond)}
@@ -1495,23 +1497,24 @@ function cntBadge(cnt,sm){
 function fgBadge(fg){return `<span class="fgb" aria-label="Frequenza ${fg||'?'} giorni"><small>F.G.</small><b>${fg||'?'}</b></span>`}
 function gasBadge(g){if(!g) return '';const t=gasTesto(g);return `<span class="cnt sm gas${t.length>6?' long':''}" aria-label="Gassosi ${esc(t)}">${esc(t)}</span>`}
 function navHTML(){
-  const nv=verifiche().length, nr=S.pazienti.filter(p=>p.reso&&!p.reso.ritirato).length;
+  const nv=avvisi().length, nr=S.pazienti.filter(p=>p.reso&&!p.reso.ritirato).length;
   const it=[
     ['giro','Giro','<path d="M3 17h2m14 0h2M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM9 17h6M3 17V7h11v10M14 10h4l3 4v3"/>'],
     ['pazienti','Pazienti','<path d="M9 11a4 4 0 100-8 4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/>'],
     ['vacanza','Vacanza','<path d="M12 3a9 9 0 00-9 9h18a9 9 0 00-9-9zM12 12v9M9 21h6M12 3c-2.5 2.5-3.5 5.5-3.5 9M12 3c2.5 2.5 3.5 5.5 3.5 9"/>'],
     ['resi','Resi','<path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5zM3 7.5L12 12l9-4.5M12 12v9"/>'],
     ['storico','Storico','<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2"/>'],
+    ['avvisi','Avvisi','<path d="M12 3.5L22 20H2z"/><path d="M12 10v4M12 17v.5"/>'],
     ...(CLOUD&&utente?[['profilo','Profilo','<path d="M12 12a4.5 4.5 0 100-9 4.5 4.5 0 000 9zM3.5 21a8.5 8.5 0 0117 0"/>']]:[]),
     ['altro','Altro','<path d="M4 6h16M4 12h16M4 18h16"/>'],
     ...(CLOUD&&utente&&utente.admin?[['admin','Admin','<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>']]:[])
   ];
-  return it.map(([k,l,svg])=>`<button data-act="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg><span>${l}${k==='pazienti'&&nv?`<span class="badge">${nv}</span>`:''}${k==='resi'&&nr?`<span class="badge or">${nr}</span>`:''}</span></button>`).join('');
+  return it.map(([k,l,svg])=>`<button data-act="tab" data-tab="${k}" ${ui.tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg><span>${l}${k==='avvisi'&&nv?`<span class="badge">${nv}</span>`:''}${k==='resi'&&nr?`<span class="badge or">${nr}</span>`:''}</span></button>`).join('');
 }
 function render(){
   if(ui.seq&&(ui.tab!=='giro'||ui.seqDay!==ui.day)) ui.seq=null;
   $('#nav').innerHTML=navHTML();
-  {const ni=$('#nav .nav-in')||$('#nav'); ni.classList.toggle('molti',(ni.children.length||0)>=8);}
+  {const ni=$('#nav .nav-in')||$('#nav'); const n=ni.children.length||0; ni.classList.toggle('molti',n>=8); ni.classList.toggle('pienissima',n>=9);}
   $('#fab').hidden = ui.tab!=='giro';
   $('#fab-mic').hidden = !(ui.tab==='giro'||ui.tab==='pazienti');
   const app=$('#app');
@@ -1565,7 +1568,7 @@ function rowHTML(p,kind,num){
 }
 function doneRowHTML(h){
   const undo=canUndo(h);
-  return `<div class="row done">
+  return `<div class="row done" data-act="azioni-fatto" data-hid="${h.id}" data-id="${h.pid}">
     <span class="check" aria-hidden="true">${ICON_CHECK}</span>
     <div class="row-main">
       <span class="nome">${esc(h.nome)}</span>
@@ -1658,7 +1661,7 @@ function renderPazienti(){
   const chips=[['tutti','Tutti'],['lunedì','Lun'],['martedì','Mar'],['mercoledì','Mer'],['giovedì','Gio'],['venerdì','Ven']];
   if(S.pazienti.some(p=>p.giorno==='sabato')) chips.push(['sabato','Sab']);
   for(const g of elencoGruppi()) chips.push(['g:'+g.nome,g.nome]);
-  let h=`<header class="page-h"><h1>Pazienti</h1><span class="sub">${S.pazienti.length} in archivio</span><button class="btn primary" data-act="nuovo">Nuovo</button></header>${ver.length?`<div style="padding:10px 14px 0"><button class="btn block" style="border-color:var(--late);color:var(--late)" data-act="tab" data-tab="avvisi">${ver.length} ${ver.length===1?'avviso da controllare':'avvisi da controllare'}</button></div>`:''}${storageWarn()}`;
+  let h=`<header class="page-h"><h1>Pazienti</h1><span class="sub">${S.pazienti.length} in archivio</span><button class="btn primary" data-act="nuovo">Nuovo</button></header>${storageWarn()}`;
   h+=`<div class="search"><input id="paz-q" type="search" placeholder="Cerca per nome, località o CNT" value="${esc(ui.q)}" autocomplete="off"></div>`;
   h+=`<div class="chips">${chips.map(([k,l])=>`<button class="chip" data-act="filtro" data-f="${k}" aria-pressed="${ui.filtro===k}">${l}</button>`).join('')}${false?`<button class="chip warn" data-act="filtro" data-f="verifica" aria-pressed="${ui.filtro==='verifica'}">Da verificare ${ver.length}</button>`:''}</div>`;
   h+=`<div id="paz-list">${pazListHTML()}</div>`;
@@ -1925,6 +1928,23 @@ function sheetAzioni(id){
     <button class="act" data-act="reso" data-id="${p.id}">Metti nei resi</button>
     <button class="act" data-act="scheda" data-id="${p.id}">Apri scheda</button>
   </div>`);
+}
+function sheetAzioniFatto(hid,pid){
+  const h=S.storico.find(x=>x.id===hid); if(!h) return;
+  const p=byId(pid);
+  if(!p){ toast('La scheda di questo paziente non esiste più.'); return; }
+  const undo=canUndo(h);
+  openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${esc(titolo(p.localita))}. ${h.tipo==='ritirato'?`Reso ritirato il ${fmtShort(h.data)}.`:`Consegnato il ${fmtShort(h.data)}${h.prossima?`, prossima ${fmtShort(h.prossima)}`:''}.`}</p>
+  ${p.struttura?`<div style="margin:0 0 12px"><button class="btn block" data-act="ospiti" data-id="${p.id}">Ospiti della struttura (${(p.ospiti||[]).length})</button></div>`:''}
+  <div class="acts">
+    <button class="act" data-act="edit-cnt" data-id="${p.id}">Cambia il CNT <small>ora ${esc(p.cnt||'?')}</small></button>
+    <button class="act" data-act="edit-fg" data-id="${p.id}">Cambia la F.G. <small>ora ${p.fg||'?'} giorni</small></button>
+    <button class="act" data-act="edit-nota-paz" data-id="${p.id}">Nota del paziente</button>
+    <button class="act" data-act="scheda" data-id="${p.id}">Apri la scheda</button>
+    ${undo?`<button class="act" style="border-color:var(--late);color:var(--late)" data-act="annulla" data-hid="${h.id}">${h.tipo==='ritirato'?'Annulla il ritiro':'Annulla la consegna'}</button>`:''}
+    <button class="act" data-act="chiudi">Chiudi</button>
+  </div>
+  ${undo?'':'<p class="hint">Questa consegna non si può più annullare da qui: dopo di essa ci sono altre operazioni sullo stesso paziente.</p>'}`);
 }
 function sheetAzioniExtra(id){
   const p=byId(id); if(!p) return;
@@ -2677,6 +2697,7 @@ const A={
   'nota-giro-set':b=>{const D=ui.day<todayISO()?todayISO():ui.day; const nt=leggiAddNota(); const p=byId(b.dataset.id); if(!p) return; if(!nt){toast('Scrivi prima la nota nel campo in alto.');return} impostaNotaGiro(p,D,nt); addNota=''; save(); closeSheet(); if(ui.day!==D) ui.day=D; render(); toast(`${p.nome}: nota messa nel giro.`)},
   'edit-nota-giro':b=>sheetNotaGiro(b.dataset.id),
   'edit-nota-paz':b=>sheetNotaPaz(b.dataset.id),
+  'azioni-fatto':b=>sheetAzioniFatto(b.dataset.hid,b.dataset.id),
   ospiti:b=>sheetOspiti(b.dataset.id),
   'osp-add':b=>aggiungiOspite(b.dataset.id),
   'osp-mod':b=>sheetOspiteMod(b.dataset.id,b.dataset.oid),
