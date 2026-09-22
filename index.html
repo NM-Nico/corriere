@@ -337,6 +337,12 @@ table.carico tr.tot td{border-bottom:0;font-weight:700}
 @media (max-width:559px){.bg2{gap:3px}.nas{min-width:26px;font-size:15px;border-width:1.5px;border-radius:7px}}
 .giro-nota{max-width:30vw;min-height:40px;padding:5px 8px;border:2px solid #b45309;border-radius:10px;background:#fff7ed;color:#9a3412;font:700 14px/1.15 var(--f-cond);text-transform:uppercase;text-align:center;white-space:normal;overflow-wrap:anywhere;display:grid;place-items:center}
 .giro-nota.paz{border-color:var(--muted);background:var(--surface2);color:var(--ink);text-transform:none}
+.osp{display:inline-grid;place-items:center;min-width:44px;padding:5px 8px;border:2px solid #5B3A8C;border-radius:10px;background:#F3ECFB;color:#5B3A8C;font:700 15px/1.1 var(--f-cond);text-align:center}
+@media (max-width:559px){.osp{min-width:0;padding:3px 6px;font-size:12px;border-width:1.5px}}
+.osp-row{display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line)}
+.osp-row .n{flex:1; min-width:0}
+.osp-row .n b{font:700 19px/1.15 var(--f-cond); display:block}
+.osp-row .n span{font-size:14px;color:var(--muted)}
 .giro-nota.paz.vuota{border-style:dashed;border-color:var(--line);background:transparent;color:var(--muted);font-weight:600}
 @media (max-width:559px){.giro-nota{max-width:26vw;font-size:11.5px;padding:3px 6px;min-height:0;border-width:1.5px}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .giro-nota{background:#3b2410;color:#fdba74;border-color:#c2410c}}
@@ -1439,6 +1445,46 @@ function verifiche(){
   return out;
 }
 
+function avvisi(){
+  const T=todayISO(), dis=new Set(S.dismissed), out=[];
+  const agg=(liv,tipo,p,testo,k)=>{ k=k||(tipo+'|'+(p?p.id:'')); if(dis.has(k)) return; out.push({liv,tipo,p,testo,k}); };
+  for(const v of verifiche()){
+    if(v.tipo==='doppio'){ out.push({liv:'alta',tipo:'doppio',a:v.a,b:v.b,k:v.k,testo:'Due schede molto simili: potrebbero essere la stessa persona.'}); continue; }
+    if(v.tipo==='gdiv'){ agg('media','gdiv',v.p,`Giorno fisso ${v.p.giorno}, ma la prossima visita cade ${fmtShort(v.p.prossima)}.`,'gg|'+v.p.id+'|'+v.p.prossima+'|'+v.p.giorno); continue; }
+    const txt={data:'Non ha una data di prossima visita: non entrerà mai nel giro.',fg:'Manca la frequenza (F.G.): il ciclo non si calcola.',cnt:'Manca il CNT: non si sa che bombola portare.',giorno:'Manca il giorno fisso.'};
+    agg(v.tipo==='giorno'?'media':'alta',v.tipo,v.p,txt[v.tipo]);
+  }
+  for(const p of S.pazienti){
+    if(p.reso){ if(p.reso.ritiro && !p.reso.ritirato && diffDays(T,p.reso.ritiro)>30) agg('media','resoVecchio',p,`Reso da ritirare fermo dal ${fmtShort(p.reso.ritiro)}.`); continue; }
+    if(p.vacanza){ if(!p.vacanza.al && diffDays(T,p.vacanza.dal)>90) agg('media','vacanzaLunga',p,`In vacanza dal ${fmtShort(p.vacanza.dal)}, senza data di rientro.`); continue; }
+    if(p.ultima && p.prossima && p.prossima<p.ultima) agg('alta','date',p,`Date incoerenti: ultima ${fmtShort(p.ultima)}, prossima ${fmtShort(p.prossima)}.`);
+    const e=eff(p);
+    if(e && e<T && diffDays(T,e)>30) agg('alta','arretrato',p,`Arretrato da ${diffDays(T,e)} giorni, dal ${fmtShort(e)}.`);
+    if(p.fg && (p.fg<3||p.fg>120)) agg('media','fgStrana',p,`Frequenza insolita: ${p.fg} giorni.`);
+    if(p.fg && p.ultima && diffDays(T,p.ultima)>p.fg*3) agg('media','fermo',p,`Ultima consegna il ${fmtShort(p.ultima)}, più del triplo della sua frequenza.`);
+    if(!p.ultima && p.prossima && p.prossima<T) agg('media','maiServito',p,'Non ha nessuna consegna registrata e la data è già passata.');
+  }
+  const ord={alta:0,media:1};
+  return out.sort((a,b)=>ord[a.liv]-ord[b.liv]||((a.p?a.p.nome:a.a.nome).localeCompare(b.p?b.p.nome:b.a.nome)));
+}
+function renderAvvisi(){
+  const V=avvisi();
+  const alte=V.filter(v=>v.liv==='alta'), medie=V.filter(v=>v.liv==='media');
+  let h=`<header class="page-h"><h1>Avvisi</h1><span class="sub">${V.length?`${V.length} da controllare`:'archivio in ordine'}</span></header>${storageWarn()}`;
+  h+=`<div class="sec-note" style="padding-top:12px">Controllo automatico dell'archivio: dati mancanti, date che non tornano, pazienti fermi da troppo tempo. Quello che va bene così puoi ignorarlo e non te lo ripropongo.</div>`;
+  if(!V.length) return h+`<div class="empty"><strong>Tutto in ordine</strong>Nessun problema trovato tra i ${S.pazienti.length} pazienti in archivio.</div>`;
+  const riga=v=>{
+    if(v.tipo==='doppio') return `<div class="card"><h3>Possibile doppione</h3><p>${esc(v.testo)}</p>
+      <div class="dup"><div>${miniP(v.a)}<button class="btn danger" data-act="elimina" data-id="${v.a.id}">Elimina questa</button></div><div>${miniP(v.b)}<button class="btn danger" data-act="elimina" data-id="${v.b.id}">Elimina questa</button></div></div>
+      <button class="btn" data-act="diversi" data-k="${v.k}">Sono due persone diverse</button></div>`;
+    return `<div class="card"><h3>${esc(v.p.nome)}</h3><p>${esc(v.testo)} ${esc(titolo(v.p.localita))}</p>
+      <button class="btn" data-act="scheda" data-id="${v.p.id}">Apri scheda</button><button class="btn" data-act="avviso-ignora" data-k="${esc(v.k)}">Ignora</button></div>`;
+  };
+  if(alte.length) h+=`<div class="sec late"><h2>Da sistemare</h2><span class="c">${alte.length}</span></div>`+alte.map(riga).join('');
+  if(medie.length) h+=`<div class="sec"><h2>Da controllare</h2><span class="c">${medie.length}</span></div>`+medie.map(riga).join('');
+  return h;
+}
+
 /* ---------- rendering ---------- */
 function cntBadge(cnt,sm){
   const c=cleanCnt(cnt);
@@ -1475,6 +1521,7 @@ function render(){
   else if(ui.tab==='storico') app.innerHTML=renderStorico();
   else if(ui.tab==='vacanza') app.innerHTML=renderVacanza();
   else if(ui.tab==='resi') app.innerHTML=renderResi();
+  else if(ui.tab==='avvisi') app.innerHTML=renderAvvisi();
   else if(ui.tab==='profilo'&&CLOUD&&utente) app.innerHTML=renderProfilo();
   else if(ui.tab==='admin'&&CLOUD&&utente&&utente.admin) app.innerHTML=renderAdmin();
   else app.innerHTML=renderAltro();
@@ -1513,7 +1560,7 @@ function rowHTML(p,kind,num){
       <span class="meta">${meta.join('. ')}</span>
     </button>
     <span class="loc${String(p.localita).length>11?' long':''}">${esc(titolo(p.localita))}</span>
-    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):`<span class="bg2"><button class="bwrap giro-nota paz${p.note?'':' vuota'}" data-act="edit-nota-paz" data-id="${p.id}" aria-label="${p.note?'Nota di':'Aggiungi nota a'} ${esc(p.nome)}">${p.note?esc(p.note):'Aggiungi nota'}</button>${notaGiroDi(p,D)?`<button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota ${esc(p.nome)}">${esc(notaGiroDi(p,D))}</button>`:''}${p.attivazione?`<span class="nas on att" aria-label="Attivazione ${esc(p.nome)}">ATTIVAZIONE</span>`:`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}${p.nasino?': sì':''}">N</button>`}<button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button></span><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
+    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):`<span class="bg2">${p.struttura?`<button class="bwrap osp" data-act="ospiti" data-id="${p.id}" aria-label="Ospiti di ${esc(p.nome)}">${(p.ospiti||[]).length} OSPITI</button>`:''}<button class="bwrap giro-nota paz${p.note?'':' vuota'}" data-act="edit-nota-paz" data-id="${p.id}" aria-label="${p.note?'Nota di':'Aggiungi nota a'} ${esc(p.nome)}">${p.note?esc(p.note):'Aggiungi nota'}</button>${notaGiroDi(p,D)?`<button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota ${esc(p.nome)}">${esc(notaGiroDi(p,D))}</button>`:''}${p.attivazione?`<span class="nas on att" aria-label="Attivazione ${esc(p.nome)}">ATTIVAZIONE</span>`:`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}${p.nasino?': sì':''}">N</button>`}<button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button></span><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
   </div>`;
 }
 function doneRowHTML(h){
@@ -1562,7 +1609,7 @@ function renderGiro(){
     <div class="week">${days.map(x=>`<button class="wd${x.d===D?' sel':''}${x.d===T?' today':''}${x.late?' has-late':''}" data-act="vai" data-d="${x.d}" aria-label="${fmtLong(x.d)}${meteo[x.d]?', '+descMeteo(meteo[x.d].c)+', massima '+meteo[x.d].max+' gradi':''}"><span class="wd-in"><span class="wd-dt"><span class="d1">${GB[wd(x.d)]}</span><span class="d2">${dm(x.d).d}</span></span>${meteo[x.d]?`<span class="wx"><i>${iconaMeteo(meteo[x.d].c)}</i><b>${meteo[x.d].max}°</b></span>`:''}</span></button>`).join('')}</div>
   </header>`;
   h+=`<div class="stats">
-    <div class="stat"><b>${bombDaFare}</b><span>da fare</span></div>
+    <div class="stat"><b>${bombDaFare}</b><span>da dare</span></div>
     <div class="stat"><b>${bombFatte}</b><span>consegnati</span></div>
     <button class="stat stat-btn${rim.length?' warn':''}" data-act="rimandati"><b>${rim.length}</b><span>rimandati</span></button>
     <button class="stat stat-btn" data-act="carico"><b>${car.totale}</b><span>bombole</span></button>
@@ -1611,9 +1658,9 @@ function renderPazienti(){
   const chips=[['tutti','Tutti'],['lunedì','Lun'],['martedì','Mar'],['mercoledì','Mer'],['giovedì','Gio'],['venerdì','Ven']];
   if(S.pazienti.some(p=>p.giorno==='sabato')) chips.push(['sabato','Sab']);
   for(const g of elencoGruppi()) chips.push(['g:'+g.nome,g.nome]);
-  let h=`<header class="page-h"><h1>Pazienti</h1><span class="sub">${S.pazienti.length} in archivio</span><button class="btn primary" data-act="nuovo">Nuovo</button></header>${storageWarn()}`;
+  let h=`<header class="page-h"><h1>Pazienti</h1><span class="sub">${S.pazienti.length} in archivio</span><button class="btn primary" data-act="nuovo">Nuovo</button></header>${ver.length?`<div style="padding:10px 14px 0"><button class="btn block" style="border-color:var(--late);color:var(--late)" data-act="tab" data-tab="avvisi">${ver.length} ${ver.length===1?'avviso da controllare':'avvisi da controllare'}</button></div>`:''}${storageWarn()}`;
   h+=`<div class="search"><input id="paz-q" type="search" placeholder="Cerca per nome, località o CNT" value="${esc(ui.q)}" autocomplete="off"></div>`;
-  h+=`<div class="chips">${chips.map(([k,l])=>`<button class="chip" data-act="filtro" data-f="${k}" aria-pressed="${ui.filtro===k}">${l}</button>`).join('')}${ver.length?`<button class="chip warn" data-act="filtro" data-f="verifica" aria-pressed="${ui.filtro==='verifica'}">Da verificare ${ver.length}</button>`:''}</div>`;
+  h+=`<div class="chips">${chips.map(([k,l])=>`<button class="chip" data-act="filtro" data-f="${k}" aria-pressed="${ui.filtro===k}">${l}</button>`).join('')}${false?`<button class="chip warn" data-act="filtro" data-f="verifica" aria-pressed="${ui.filtro==='verifica'}">Da verificare ${ver.length}</button>`:''}</div>`;
   h+=`<div id="paz-list">${pazListHTML()}</div>`;
   return h;
 }
@@ -1827,6 +1874,7 @@ function renderAltro(){
     else inst=`<div class="card"><h3>Installa sul telefono</h3><p>${deferredPrompt?'Mettila sulla schermata Home come una normale app, funziona anche senza campo.':'Se il pulsante non si attiva: menu ⋮ di Chrome, poi “Installa app” o “Aggiungi a schermata Home”.'}</p><button class="btn primary" data-act="installa" ${deferredPrompt?'':'disabled'}>Installa app</button></div>`;
   }
   return `<header class="page-h"><h1>Altro</h1><span class="sub">Medic Air</span></header>${storageWarn()}
+  <div class="card"><h3>Avvisi</h3><p>Controllo automatico dell’archivio: doppioni, dati mancanti, date che non tornano, pazienti fermi da troppo tempo.</p><button class="btn" data-act="tab" data-tab="avvisi">Apri gli avvisi${(()=>{const n=avvisi().length;return n?` (${n})`:''})()}</button></div>
   ${CLOUD?(utente?`<div class="card"><h3>Account</h3><p>Nome, password, sincronizzazione e uscita sono nella sezione Profilo.</p><button class="btn" data-act="tab" data-tab="profilo">Apri Profilo</button></div>`:''):(PWA?`<div class="card"><h3>Account online</h3><p>Non ancora collegato: i dati restano solo su questo telefono.</p></div>`:'')}
   ${inst}
   <div class="card"><h3>Meteo</h3><p>Previsioni di <strong>${esc(METEO_POS.nome)}</strong>, mostrate nella striscia dei giorni.${meteo[todayISO()]?` Oggi ${iconaMeteo(meteo[todayISO()].c)} ${descMeteo(meteo[todayISO()].c)}, ${meteo[todayISO()].min}° / ${meteo[todayISO()].max}°.`:''}</p><button class="btn" data-act="meteo">Cambia zona</button></div>
@@ -1863,6 +1911,7 @@ function sheetAzioni(id){
   const D=ui.day, d1=rinvioDate(p,D,1), d7=rinvioDate(p,D,7), dop=dataOperazione(D);
   const next=calcNext(p,dop);
   openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${esc(p.localita)}. CNT ${esc(p.cnt||'?')}, F.G. ${p.fg||'?'}${p.note?`. ${esc(p.note)}`:''}</p>
+  ${p.struttura?`<div style="margin:0 0 12px"><button class="btn block" data-act="ospiti" data-id="${p.id}">Ospiti della struttura (${(p.ospiti||[]).length})</button></div>`:''}
   <div class="acts">
     <button class="act go" data-act="consegna" data-id="${p.id}">Consegnato <small>${next?`prossima ${fmtShort(next)}`:''}</small></button>
     <button class="act rv" data-act="rimanda" data-n="1" data-id="${p.id}">Rimanda a domani <small>${fmtShort(d1)}</small></button>
@@ -1972,6 +2021,8 @@ function sheetScheda(id,opts={}){
   ${p&&p.spostata?`<div class="warnbox">${p.spostata.motivo==='rinvio'?'Rimandato':'Aggiunto al giro'}: da fare ${fmtShort(p.spostata.data)}. Il ciclo resta sulla prossima visita qui sopra. <button class="undo-btn" data-act="togli-rinvio" data-id="${p.id}">Togli</button></div>`:''}
   <label class="field"><span>Gruppo, se va fatto insieme ad altri (es. Zeri)</span><input id="f-gruppo" value="${esc(v.gruppo||'')}" list="gruppi-list" autocomplete="off"><datalist id="gruppi-list">${elencoGruppi().map(g=>`<option value="${esc(g.nome)}">`).join('')}</datalist></label>
   <label class="field"><span>Note</span><textarea id="f-note">${esc(v.note)}</textarea></label>
+  <label class="checkline"><input type="checkbox" id="f-strut" ${p&&p.struttura?'checked':''}><span>È una struttura (RSA, casa di riposo, comunità): dentro ci metti i singoli ospiti.</span></label>
+  ${p&&p.struttura?`<div style="margin:0 0 12px"><button class="btn block" data-act="ospiti" data-id="${p.id}">Ospiti (${(p.ospiti||[]).length})</button></div>`:''}
   ${isNew?`<label class="checkline"><input type="checkbox" id="f-attiv"><span>Attivazione: prima consegna con installazione. Nel giro compare la scritta ATTIVAZIONE in verde al posto della N.</span></label>`:(p&&p.attivazione?`<div class="warnbox">Segnato come <strong>ATTIVAZIONE</strong>: la scritta sparisce dopo la prima consegna. <button class="undo-btn" data-act="attivazione" data-id="${p.id}">Togli</button></div>`:'')}
   <div id="f-err"></div>
   <button class="btn primary block" data-act="salva" data-id="${p?p.id:''}" data-giro="${opts.giro?1:''}">${isNew?(opts.giro?'Crea e metti nel giro':'Crea paziente'):'Salva modifiche'}</button>
@@ -2015,11 +2066,13 @@ function salvaScheda(btn){
   if(id){
     const p=byId(id); if(!p) return;
     Object.assign(p,{nome,localita:loc,cnt,fg,giorno:gg,ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note,gruppo}); if(gasV) p.gas=gasV; else delete p.gas;
+    p.struttura=!!($('#f-strut')&&$('#f-strut').checked); if(!p.struttura) delete p.ospiti; else if(p.ospiti&&p.ospiti.length) aggiornaCntStruttura(p);
     save(); closeSheet(); render(); toast(`Scheda di ${nome} salvata.`);
   } else {
     const D=ui.day<todayISO()?todayISO():ui.day;
     const p={id:uid(),nome,localita:loc,cnt,fg,giorno:gg||'',ultima:validISO(ult)?ult:'',prossima:validISO(pro)?pro:'',note,gruppo,spostata:null}; if(gasV) p.gas=gasV;
     if($('#f-attiv')&&$('#f-attiv').checked) p.attivazione=true;
+    if($('#f-strut')&&$('#f-strut').checked){ p.struttura=true; p.ospiti=[]; }
     if(giro){ p.prossima=D; if(!p.giorno) p.giorno=GIORNI[wd(D)]; if(addNota) p.notaGiro={data:D,testo:addNota}; addNota=''; }
     if(!p.giorno && p.prossima) p.giorno=GIORNI[wd(p.prossima)];
     S.pazienti.push(p); save(); closeSheet();
@@ -2176,6 +2229,63 @@ function sequenzaPerLocalita(){
   if(S.sequenze) delete S.sequenze[ui.day];
   ui.seq=null; save(); render();
   toast('Tolta la sequenza: il giro torna in ordine di località.');
+}
+
+/* ---------- strutture e RSA: ospiti ---------- */
+function cntDaOspiti(p){
+  const m=new Map();
+  for(const o of (p.ospiti||[])){ const c=cleanCnt(o.cnt); if(!c) continue; m.set(c,(m.get(c)||0)+1); }
+  if(!m.size) return '';
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([c,n])=>n>1?`${n}X${c}`:c).join('+');
+}
+function aggiornaCntStruttura(p){ const c=cntDaOspiti(p); if(c) p.cnt=c; return c; }
+function sheetOspiti(id){
+  const p=byId(id); if(!p) return;
+  const L=p.ospiti||[], tot=cntDaOspiti(p);
+  openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${esc(titolo(p.localita))}. ${L.length?`${L.length} ${L.length===1?'ospite':'ospiti'}${tot?`, in tutto ${esc(tot.replace(/X/g,'×'))}`:''}.`:'Nessun ospite inserito: aggiungili qui sotto.'}</p>
+  ${L.length?`<div style="margin:0 0 14px">${L.map(o=>`<div class="osp-row"><span class="n"><b>${esc(o.nome)}</b><span>${esc((o.cnt||'—').replace(/X/g,'×'))}${o.note?' · '+esc(o.note):''}</span></span>
+    <button class="btn" style="min-height:40px;padding:0 12px" data-act="osp-mod" data-id="${p.id}" data-oid="${o.id}">Modifica</button>
+    <button class="btn danger" style="min-height:40px;padding:0 12px" data-act="osp-del" data-id="${p.id}" data-oid="${o.id}">Togli</button></div>`).join('')}</div>`:''}
+  <div class="card" style="margin:0"><h3 style="margin-top:0">Aggiungi un ospite</h3>
+  <label class="field"><span>Nome</span><input id="os-nome" autocapitalize="characters" autocomplete="off"></label>
+  <label class="field"><span>Bombola</span><input id="os-cnt" autocapitalize="characters" autocomplete="off"><span class="quick">${ORDINE_CNT.map(c=>`<button type="button" data-act="os-set-cnt" data-v="${c}">${c}</button>`).join('')}</span></label>
+  <label class="field"><span>Nota</span><input id="os-nota" autocomplete="off" placeholder="es. stanza 3"></label>
+  <div id="os-err"></div>
+  <button class="btn primary block" data-act="osp-add" data-id="${p.id}">Aggiungi</button></div>
+  <p class="hint">Il CNT della struttura nel giro si aggiorna da solo con il totale degli ospiti.</p>`,
+  ()=>setTimeout(()=>{const i=$('#os-nome');i&&i.focus()},80));
+}
+function aggiungiOspite(id){
+  const p=byId(id); if(!p) return;
+  const nome=$('#os-nome').value.trim().toUpperCase(), cnt=cleanCnt($('#os-cnt').value), nota=$('#os-nota').value.trim();
+  if(!nome){$('#os-err').innerHTML='<div class="errbox">Scrivi il nome dell’ospite.</div>';return}
+  p.ospiti=p.ospiti||[]; p.ospiti.push({id:uid(),nome,cnt,note:nota});
+  const tot=aggiornaCntStruttura(p);
+  save(); render(); sheetOspiti(id);
+  toast(`${nome} aggiunto${tot?`. Struttura: ${tot.replace(/X/g,'×')}`:''}.`);
+}
+function sheetOspiteMod(id,oid){
+  const p=byId(id); if(!p) return; const o=(p.ospiti||[]).find(x=>x.id===oid); if(!o) return;
+  openSheet(`<h2>${esc(o.nome)}</h2><p class="lead">Ospite di ${esc(p.nome)}.</p>
+  <label class="field"><span>Nome</span><input id="om-nome" value="${esc(o.nome)}" autocapitalize="characters" autocomplete="off"></label>
+  <label class="field"><span>Bombola</span><input id="om-cnt" value="${esc(o.cnt||'')}" autocapitalize="characters" autocomplete="off"><span class="quick">${ORDINE_CNT.map(c=>`<button type="button" data-act="om-set-cnt" data-v="${c}">${c}</button>`).join('')}</span></label>
+  <label class="field"><span>Nota</span><input id="om-nota" value="${esc(o.note||'')}" autocomplete="off"></label>
+  <button class="btn primary block" data-act="osp-mod-ok" data-id="${p.id}" data-oid="${o.id}">Salva</button>
+  <div style="margin-top:10px"><button class="btn danger block" data-act="osp-del" data-id="${p.id}" data-oid="${o.id}">Togli dalla struttura</button></div>`);
+}
+function salvaOspite(id,oid){
+  const p=byId(id); if(!p) return; const o=(p.ospiti||[]).find(x=>x.id===oid); if(!o) return;
+  const nome=$('#om-nome').value.trim().toUpperCase(); if(!nome) return;
+  o.nome=nome; o.cnt=cleanCnt($('#om-cnt').value); o.note=$('#om-nota').value.trim();
+  aggiornaCntStruttura(p); save(); render(); sheetOspiti(id); toast('Ospite aggiornato.');
+}
+function togliOspite(id,oid){
+  const p=byId(id); if(!p) return;
+  const o=(p.ospiti||[]).find(x=>x.id===oid); if(!o) return;
+  const prima=[...p.ospiti], primaCnt=p.cnt;
+  p.ospiti=p.ospiti.filter(x=>x.id!==oid);
+  aggiornaCntStruttura(p); save(); render(); sheetOspiti(id);
+  toast(`${o.nome} tolto.`,()=>{p.ospiti=prima;p.cnt=primaCnt;save();render();sheetOspiti(id)});
 }
 
 /* ---------- nota nel giro (al posto delle bombole) ---------- */
@@ -2567,6 +2677,13 @@ const A={
   'nota-giro-set':b=>{const D=ui.day<todayISO()?todayISO():ui.day; const nt=leggiAddNota(); const p=byId(b.dataset.id); if(!p) return; if(!nt){toast('Scrivi prima la nota nel campo in alto.');return} impostaNotaGiro(p,D,nt); addNota=''; save(); closeSheet(); if(ui.day!==D) ui.day=D; render(); toast(`${p.nome}: nota messa nel giro.`)},
   'edit-nota-giro':b=>sheetNotaGiro(b.dataset.id),
   'edit-nota-paz':b=>sheetNotaPaz(b.dataset.id),
+  ospiti:b=>sheetOspiti(b.dataset.id),
+  'osp-add':b=>aggiungiOspite(b.dataset.id),
+  'osp-mod':b=>sheetOspiteMod(b.dataset.id,b.dataset.oid),
+  'osp-mod-ok':b=>salvaOspite(b.dataset.id,b.dataset.oid),
+  'osp-del':b=>togliOspite(b.dataset.id,b.dataset.oid),
+  'os-set-cnt':b=>{$('#os-cnt').value=b.dataset.v},
+  'om-set-cnt':b=>{$('#om-cnt').value=b.dataset.v},
   'nota-paz-ok':b=>{const p=byId(b.dataset.id); if(!p) return; const prima=p.note; p.note=String(($('#np-in')||{}).value||'').trim(); save(); closeSheet(); render(); toast(p.note?`Nota di ${p.nome} salvata.`:`Nota di ${p.nome} tolta.`,()=>{p.note=prima;save();render()})},
   'nota-giro-ok':b=>{const p=byId(b.dataset.id); if(!p) return; impostaNotaGiro(p,ui.day,($('#ng-in')||{}).value); save(); closeSheet(); render()},
   'nota-giro-via':b=>{const p=byId(b.dataset.id); if(!p) return; impostaNotaGiro(p,ui.day,''); save(); closeSheet(); render(); toast(`${p.nome}: nota tolta.`)},
@@ -2652,6 +2769,7 @@ const A={
   backup:()=>backup(),
   'export-csv':()=>exportCSV(),
   'storico-scarica':()=>sheetScaricaStorico(),
+  'avviso-ignora':b=>{S.dismissed=S.dismissed||[]; if(!S.dismissed.includes(b.dataset.k)) S.dismissed.push(b.dataset.k); save(); render(); toast('Avviso ignorato.')},
   voce:()=>sheetVoce(),
   'voce-start':()=>voceStart(),
   'voce-scegli':b=>faiVoce(b.dataset.id,b.dataset.az,b.dataset.ex||''),
