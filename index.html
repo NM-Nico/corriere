@@ -158,6 +158,12 @@ input,select,textarea{font:inherit;color:inherit}
 .upd-box h3{font:700 24px/1.15 var(--f-cond);margin:0 0 6px}
 .upd-box .t{color:var(--muted);font-size:15px;line-height:1.4;margin:0 0 18px}
 .upd-box .btn{width:100%;margin-bottom:8px}
+.upd-scr{position:fixed;inset:0;z-index:90;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px;text-align:center}
+.upd-scr img{width:min(70vw,320px);height:auto}
+.upd-scr .bar2{width:min(64vw,300px);height:8px;border-radius:4px;background:#E3EDF5;overflow:hidden}
+.upd-scr .bar2 i{display:block;height:100%;width:0;background:linear-gradient(90deg,#0A7CC1,#29A8E0);border-radius:4px;transition:width .5s ease}
+.upd-scr .st{font:500 16px var(--f-body);color:var(--muted);min-height:22px}
+.upd-scr .vv{font:700 22px var(--f-cond);color:var(--oxy)}
 @keyframes sfuma{from{opacity:0}to{opacity:1}}
 @keyframes saleSu{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
 .fab.mic{bottom:calc(138px + env(safe-area-inset-bottom,0px));background:var(--oxy);color:#fff}
@@ -2651,6 +2657,8 @@ const A={
   'voce-scegli':b=>faiVoce(b.dataset.id,b.dataset.az,b.dataset.ex||''),
   'backup-ora':()=>{backup();segnaBackup();closeSheet()},
   'upd-ora':()=>aggiornaApp(),
+  'upd-riprova':()=>{const s=document.getElementById('upd-scr'); if(s) s.remove(); aggiornaApp()},
+  'upd-annulla':()=>{const s=document.getElementById('upd-scr'); if(s) s.remove(); lsSet('medicair.updRinvio',String(Date.now()+30*60*1000))},
   'upd-dopo':()=>{const b=document.getElementById('upd-bar'); if(b) b.remove(); lsSet('medicair.updRinvio',String(Date.now()+30*60*1000)); toast('Te lo ricordo tra mezz’ora.')},
   'backup-dopo':()=>{try{lsSet(BKKEY,addDays(todayISO(),-6))}catch(e){} closeSheet()},
   'storico-scarica-ok':()=>scaricaStorico(),
@@ -2710,12 +2718,35 @@ function barraAggiornamento(v){
   document.body.appendChild(d);
 }
 async function aggiornaApp(){
-  const b=document.querySelector('#upd-bar [data-act="upd-ora"]'); if(b){b.textContent='Aggiorno…';b.disabled=true}
-  try{ if('serviceWorker' in navigator){ const reg=await conTimeout(navigator.serviceWorker.getRegistration(),4000);
-    if(reg){ await conTimeout(reg.update(),6000); if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); } } }catch(e){}
-  try{ if(window.caches){ const k=await caches.keys(); for(const x of k) await caches.delete(x); } }catch(e){}
-  try{ if(updVista) localStorage.setItem(VKEY,updVista); }catch(e){}
-  location.replace(location.pathname+'?v='+encodeURIComponent(updVista||Date.now()));
+  const bar=document.getElementById('upd-bar'); if(bar) bar.remove();
+  const sc=document.createElement('div');
+  sc.className='upd-scr'; sc.id='upd-scr';
+  sc.innerHTML=`${LOGO.startsWith('data:')?`<img src="${LOGO}" alt="MedicAir People">`:''}
+    <div class="vv">Versione ${esc(updVista||'')}</div>
+    <div class="bar2"><i id="upd-i"></i></div>
+    <div class="st" id="upd-st">Preparo l’aggiornamento…</div>`;
+  document.body.appendChild(sc);
+  const st=$('#upd-st'), pb=$('#upd-i');
+  const passo=(t,p)=>{ if(st) st.textContent=t; if(pb) pb.style.width=p+'%'; };
+  const attesa=ms=>new Promise(r=>setTimeout(r,ms));
+  const errore=(t)=>{ passo(t,100); sc.insertAdjacentHTML('beforeend',`<button class="btn" data-act="upd-riprova" style="min-height:46px;padding:0 20px">Riprova</button><button class="btn" data-act="upd-annulla" style="min-height:46px;padding:0 20px">Torna all’app</button>`); };
+  try{
+    passo('Salvo il lavoro in corso…',12); await attesa(450);
+    if(CLOUD&&utente&&S._dirty){ try{ await conTimeout(invia(),10000); }catch(e){} }
+    passo('Scarico la versione nuova…',40);
+    let ok=true;
+    try{ const r=await conTimeout(fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}),15000); ok=!!(r&&r.ok); }catch(e){ ok=false; }
+    if(!ok && navigator.onLine===false){ errore('Serve la connessione per aggiornare.'); return; }
+    if(!ok){ errore('Non riesco a scaricare l’aggiornamento. Riprova tra poco.'); return; }
+    passo('Installo…',70); await attesa(350);
+    try{ if('serviceWorker' in navigator){ const reg=await conTimeout(navigator.serviceWorker.getRegistration(),4000);
+      if(reg){ await conTimeout(reg.update(),8000); if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); } } }catch(e){}
+    passo('Pulisco la copia vecchia…',88);
+    try{ if(window.caches){ const k=await caches.keys(); for(const x of k) await caches.delete(x); } }catch(e){}
+    try{ if(updVista) localStorage.setItem(VKEY,updVista); }catch(e){}
+    passo('Fatto. Riapro l’app…',100); await attesa(700);
+    location.replace(location.pathname+'?v='+encodeURIComponent(updVista||Date.now()));
+  }catch(e){ errore('Aggiornamento non riuscito.'); }
 }
 async function cercaAggiornamento(){
   if(!PWA || !navigator.onLine || document.getElementById('upd-bar')) return;
