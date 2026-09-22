@@ -305,6 +305,11 @@ table.carico tr.tot td{border-bottom:0;font-weight:700}
 .badges{display:flex;align-items:center;gap:5px}
 .bwrap{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;display:block;cursor:pointer}
 .bwrap:active{opacity:.55;transform:scale(.94)}
+.bg2{display:flex;gap:5px;align-items:stretch}
+.nas{display:inline-grid;place-items:center;min-width:34px;border:2px dashed var(--line);border-radius:9px;background:var(--surface);color:var(--muted);font:700 19px/1 var(--f-cond)}
+.nas.on{border:2px solid #047857;background:#047857;color:#fff}
+.nas.ro{border-style:solid;border-color:#047857;color:#047857;background:transparent}
+@media (max-width:559px){.bg2{gap:3px}.nas{min-width:26px;font-size:15px;border-width:1.5px;border-radius:7px}}
 .giro-nota{max-width:46vw;min-height:44px;padding:6px 10px;border:2px solid #b45309;border-radius:10px;background:#fff7ed;color:#9a3412;font:700 16px/1.15 var(--f-cond);text-transform:uppercase;text-align:center;white-space:normal;overflow-wrap:anywhere}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .giro-nota{background:#3b2410;color:#fdba74;border-color:#c2410c}}
 :root[data-theme="dark"] .giro-nota{background:#3b2410;color:#fdba74;border-color:#c2410c}
@@ -1170,7 +1175,7 @@ function rinvioDate(p,D,n){
   return r;
 }
 function dataOperazione(D){const T=todayISO();return D<T?D:T}
-function snap(p){return {ultima:p.ultima, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null, vacanza:p.vacanza?{...p.vacanza}:null, reso:p.reso?{...p.reso}:null, extra:p.extra?[...p.extra]:null}}
+function snap(p){return {ultima:p.ultima, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null, vacanza:p.vacanza?{...p.vacanza}:null, reso:p.reso?{...p.reso}:null, extra:p.extra?[...p.extra]:null, nasino:!!p.nasino}}
 function logOp(h){S.storico.unshift(Object.assign({id:uid(), ts:Date.now()},h))}
 
 function consegna(id){
@@ -1179,8 +1184,9 @@ function consegna(id){
   const prima=snap(p);
   if(p.vacanza){p.prossima='';}
   const next=calcNext(p,d);
-  p.ultima=d; p.prossima=next; p.spostata=null; p.vacanza=null;
-  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, data:d, giro:ui.day, prossima:next, prima});
+  const nas=!!p.nasino;
+  p.ultima=d; p.prossima=next; p.spostata=null; p.vacanza=null; p.nasino=false;
+  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, nasino:nas||undefined, data:d, giro:ui.day, prossima:next, prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
   toast(next ? `${p.nome}: consegnato. Prossima ${fmtShort(next)}.` : `${p.nome}: consegnato. Manca la F.G.: imposta la prossima visita nella scheda.`, ()=>annulla(hid));
@@ -1309,7 +1315,7 @@ function annulla(hid){
   const h=S.storico.find(x=>x.id===hid); if(!h) return;
   if(!canUndo(h)){toast('Si può annullare solo l’ultima operazione di ogni paziente.');return}
   const p=byId(h.pid);
-  p.ultima=h.prima.ultima; p.prossima=h.prima.prossima; p.spostata=h.prima.spostata; p.vacanza=h.prima.vacanza||null; p.reso=h.prima.reso||null; if(h.prima.extra!==undefined){ if(h.prima.extra&&h.prima.extra.length) p.extra=[...h.prima.extra]; else delete p.extra; }
+  p.ultima=h.prima.ultima; p.prossima=h.prima.prossima; p.spostata=h.prima.spostata; p.vacanza=h.prima.vacanza||null; p.reso=h.prima.reso||null; if(h.prima.nasino!==undefined) p.nasino=h.prima.nasino||false; if(h.prima.extra!==undefined){ if(h.prima.extra&&h.prima.extra.length) p.extra=[...h.prima.extra]; else delete p.extra; }
   S.storico=S.storico.filter(x=>x!==h);
   save(); closeSheet(); render();
   toast(`Annullato: ${p.nome}.`);
@@ -1475,7 +1481,7 @@ function rowHTML(p,kind,num){
       ${p.note?`<span class="note">${esc(p.note)}</span>`:''}
     </button>
     <span class="loc${String(p.localita).length>11?' long':''}">${esc(titolo(p.localita))}</span>
-    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):notaGiroDi(p,D)?`<button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota">${esc(notaGiroDi(p,D))}</button>`:`<button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
+    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):notaGiroDi(p,D)?`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}">N</button><button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota">${esc(notaGiroDi(p,D))}</button>`:`<span class="bg2"><button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}${p.nasino?': sì':''}">N</button><button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button></span><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
   </div>`;
 }
 function doneRowHTML(h){
@@ -1488,7 +1494,7 @@ function doneRowHTML(h){
       ${undo?`<button class="undo-btn" data-act="annulla" data-hid="${h.id}">${h.tipo==='ritirato'?'Annulla ritiro':'Annulla consegna'}</button>`:''}
     </div>
     <span class="loc${String(h.localita).length>11?' long':''}">${esc(titolo(h.localita))}</span>
-    <span class="badges">${h.tipo==='ritirato'?'':fgBadge(h.fg)}${cntBadge(h.cnt)}</span>
+    <span class="badges">${h.tipo==='ritirato'?'':`<span class="bg2">${h.nasino?'<span class="nas ro" aria-label="Nasino portato">N</span>':''}${fgBadge(h.fg)}</span>`}${cntBadge(h.cnt)}</span>
   </div>`;
 }
 function gruppiLocalita(list){
@@ -2046,7 +2052,7 @@ function sheetEditFg(id){
   const p=byId(id); if(!p) return;
   openSheet(`<h2>F.G. — ${esc(p.nome)}</h2><p class="lead">Ogni quanti giorni va servito.${p.ultima?` Ultima consegna ${fmtShort(p.ultima)}.`:''}</p>
   <label class="field"><span>Giorni</span><input type="number" id="fg-in" min="1" max="365" inputmode="numeric" value="${p.fg||''}"><span class="quick">${FG_PRESET.map(n=>`<button type="button" data-act="fg-set" data-v="${n}">${n}</button>`).join('')}</span></label>
-  ${p.ultima?`<label class="checkline"><input type="checkbox" id="fg-next" checked><span>Aggiorna anche la prossima visita (dall'ultima consegna)</span></label>`:''}
+  <p class="hint">Resta nel giro di ${fmtShort(ui.day<todayISO()?todayISO():ui.day)}: da quella consegna il ciclo riparte con la nuova F.G.</p>
   <button class="btn primary block" data-act="fg-ok" data-id="${p.id}">Salva</button>`);
 }
 function sheetEditCnt(id){
@@ -2062,12 +2068,12 @@ function salvaFgRapido(id){
   const p=byId(id); if(!p) return;
   const v=parseInt((($('#fg-in')||{}).value)||'',10);
   if(!v||v<1||v>365){toast('Inserisci un numero di giorni valido.');return}
-  const prima={fg:p.fg, prossima:p.prossima};
-  p.fg=v;
-  const ck=$('#fg-next');
-  if(ck&&ck.checked&&p.ultima){let n=addDays(p.ultima,v); if(wd(n)===0) n=addDays(n,1); p.prossima=n; p.spostata=null;}
+  const prima={fg:p.fg, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null};
+  const D=ui.day<todayISO()?todayISO():ui.day;
+  p.fg=v; p.prossima=D; p.spostata=null;
+  const dopo=calcNext(p,D);
   save(); closeSheet(); render();
-  toast(`${p.nome}: F.G. ${v}${p.prossima?`, prossima ${fmtShort(p.prossima)}`:''}.`,()=>{p.fg=prima.fg;p.prossima=prima.prossima;save();render()});
+  toast(`${p.nome}: F.G. ${v}. Dopo la consegna di ${fmtShort(D)} la prossima sarà ${dopo?fmtShort(dopo):'da impostare'}.`,()=>{p.fg=prima.fg;p.prossima=prima.prossima;p.spostata=prima.spostata;save();render()});
 }
 function salvaCntRapido(id){
   const p=byId(id); if(!p) return;
@@ -2425,6 +2431,7 @@ const A={
   'reso-nuovo-ok':()=>salvaResoNuovo(),
   'rs-set-cnt':b=>{$('#rs-cnt').value=b.dataset.v},
   'edit-fg':b=>sheetEditFg(b.dataset.id),
+  nasino:b=>{const p=byId(b.dataset.id); if(!p) return; p.nasino=!p.nasino; save(); render(); toast(p.nasino?`${p.nome}: portare il nasino.`:`${p.nome}: niente nasino.`)},
   'edit-cnt':b=>sheetEditCnt(b.dataset.id),
   'fg-set':b=>{$('#fg-in').value=b.dataset.v},
   'cnt-set':b=>{$('#cnt-in').value=b.dataset.v},
