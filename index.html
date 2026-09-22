@@ -312,7 +312,10 @@ table.carico tr.tot td{border-bottom:0;font-weight:700}
 .nas.att{min-width:0;padding:4px 9px;border-radius:9px;font:700 14px/1.1 var(--f-cond);letter-spacing:.03em}
 @media (max-width:559px){.nas.att{padding:2px 6px;font-size:11.5px}}
 @media (max-width:559px){.bg2{gap:3px}.nas{min-width:26px;font-size:15px;border-width:1.5px;border-radius:7px}}
-.giro-nota{max-width:46vw;min-height:44px;padding:6px 10px;border:2px solid #b45309;border-radius:10px;background:#fff7ed;color:#9a3412;font:700 16px/1.15 var(--f-cond);text-transform:uppercase;text-align:center;white-space:normal;overflow-wrap:anywhere}
+.giro-nota{max-width:30vw;min-height:40px;padding:5px 8px;border:2px solid #b45309;border-radius:10px;background:#fff7ed;color:#9a3412;font:700 14px/1.15 var(--f-cond);text-transform:uppercase;text-align:center;white-space:normal;overflow-wrap:anywhere;display:grid;place-items:center}
+.giro-nota.paz{border-color:var(--muted);background:var(--surface2);color:var(--ink);text-transform:none}
+.giro-nota.paz.vuota{border-style:dashed;border-color:var(--line);background:transparent;color:var(--muted);font-weight:600}
+@media (max-width:559px){.giro-nota{max-width:26vw;font-size:11.5px;padding:3px 6px;min-height:0;border-width:1.5px}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .giro-nota{background:#3b2410;color:#fdba74;border-color:#c2410c}}
 :root[data-theme="dark"] .giro-nota{background:#3b2410;color:#fdba74;border-color:#c2410c}
 .fgb{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:40px;padding:3px 5px 4px;border:2px solid var(--muted);border-top-width:5px;border-radius:11px 11px 6px 6px;background:var(--surface);line-height:1;color:var(--ink)}
@@ -1480,10 +1483,9 @@ function rowHTML(p,kind,num){
     <button class="row-main" data-act="${kind==='extra'?'azioni-extra':kind==='reso'?'azioni-reso':'azioni'}" data-id="${p.id}">
       <span class="nome">${esc(p.nome)}</span>
       <span class="meta">${meta.join('. ')}</span>
-      ${p.note?`<span class="note">${esc(p.note)}</span>`:''}
     </button>
     <span class="loc${String(p.localita).length>11?' long':''}">${esc(titolo(p.localita))}</span>
-    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):notaGiroDi(p,D)?`${p.attivazione?`<button class="bwrap nas on att" data-act="attivazione" data-id="${p.id}" aria-label="Attivazione ${esc(p.nome)}">ATTIVAZIONE</button>`:`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}">N</button>`}<button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota">${esc(notaGiroDi(p,D))}</button>`:`<span class="bg2">${p.attivazione?`<button class="bwrap nas on att" data-act="attivazione" data-id="${p.id}" aria-label="Attivazione ${esc(p.nome)}">ATTIVAZIONE</button>`:`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}${p.nasino?': sì':''}">N</button>`}<button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button></span><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
+    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):`<span class="bg2"><button class="bwrap giro-nota paz${p.note?'':' vuota'}" data-act="edit-nota-paz" data-id="${p.id}" aria-label="${p.note?'Nota di':'Aggiungi nota a'} ${esc(p.nome)}">${p.note?esc(p.note):'Aggiungi nota'}</button>${notaGiroDi(p,D)?`<button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota ${esc(p.nome)}">${esc(notaGiroDi(p,D))}</button>`:''}${p.attivazione?`<span class="nas on att" aria-label="Attivazione ${esc(p.nome)}">ATTIVAZIONE</span>`:`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}${p.nasino?': sì':''}">N</button>`}<button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button></span><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
   </div>`;
 }
 function doneRowHTML(h){
@@ -1897,7 +1899,6 @@ function sheetAggiungi(){
   </div>
   <p class="hint" id="add-mode-hint">${addMode==='extra'?'Lo porti anche oggi, ma continua a comparire nel suo giorno normale.':'La sua prossima visita si fa qui e non compare più nel suo giorno normale.'}</p>
   <label class="field"><span>Nota a destra, al posto delle bombole (facoltativa)</span><input id="add-nota" value="${esc(addNota)}" placeholder="es. RITIRO CONCENTRATORE" autocomplete="off" autocapitalize="characters"></label>
-  ${gruppiHTML(D)}
   <div class="field"><input id="add-q" type="search" placeholder="Nome, località o CNT" autocomplete="off"></div>
   <div id="add-res" class="res"></div>
   <div style="margin-top:14px"><button class="btn block" data-act="nuovo-giro">Crea un paziente nuovo</button><button class="btn block" style="margin-top:8px" data-act="reso-nuovo" data-dagiro="1">Crea un reso rapido</button></div>`, r=>{const an=$('#add-nota'); an&&an.addEventListener('input',()=>{addNota=an.value.trim().toUpperCase()}); setTimeout(()=>{const i=$('#add-q');i&&i.focus()},60)});
@@ -2039,6 +2040,12 @@ function impostaNotaGiro(p,D,testo){
   testo=String(testo||'').trim().toUpperCase();
   if(testo) p.notaGiro={data:D,testo};
   else if(p.notaGiro&&p.notaGiro.data===D) p.notaGiro=null;
+}
+function sheetNotaPaz(id){
+  const p=byId(id); if(!p) return;
+  openSheet(`<h2>Nota — ${esc(p.nome)}</h2><p class="lead">Nota fissa della scheda: si vede in ogni giro finché non la cambi.</p>
+  <label class="field"><span>Nota</span><textarea id="np-in">${esc(p.note||'')}</textarea></label>
+  <button class="btn primary block" data-act="nota-paz-ok" data-id="${p.id}">Salva</button>`);
 }
 function sheetNotaGiro(id){
   const p=byId(id); if(!p) return;
@@ -2376,6 +2383,8 @@ const A={
   'add-giro':b=>{const D=ui.day<todayISO()?todayISO():ui.day; const nt=leggiAddNota(); const p=byId(b.dataset.id); if(p&&nt){impostaNotaGiro(p,D,nt); save();} addNota=''; if(addMode==='extra') aggiungiExtra([b.dataset.id],D); else aggiungiAlGiro(b.dataset.id)},
   'nota-giro-set':b=>{const D=ui.day<todayISO()?todayISO():ui.day; const nt=leggiAddNota(); const p=byId(b.dataset.id); if(!p) return; if(!nt){toast('Scrivi prima la nota nel campo in alto.');return} impostaNotaGiro(p,D,nt); addNota=''; save(); closeSheet(); if(ui.day!==D) ui.day=D; render(); toast(`${p.nome}: nota messa nel giro.`)},
   'edit-nota-giro':b=>sheetNotaGiro(b.dataset.id),
+  'edit-nota-paz':b=>sheetNotaPaz(b.dataset.id),
+  'nota-paz-ok':b=>{const p=byId(b.dataset.id); if(!p) return; const prima=p.note; p.note=String(($('#np-in')||{}).value||'').trim(); save(); closeSheet(); render(); toast(p.note?`Nota di ${p.nome} salvata.`:`Nota di ${p.nome} tolta.`,()=>{p.note=prima;save();render()})},
   'nota-giro-ok':b=>{const p=byId(b.dataset.id); if(!p) return; impostaNotaGiro(p,ui.day,($('#ng-in')||{}).value); save(); closeSheet(); render()},
   'nota-giro-via':b=>{const p=byId(b.dataset.id); if(!p) return; impostaNotaGiro(p,ui.day,''); save(); closeSheet(); render(); toast(`${p.nome}: nota tolta.`)},
   'add-mode':b=>{addMode=b.dataset.m;document.querySelectorAll('[data-act=add-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.m===addMode));$('#add-mode-hint').textContent=addMode==='extra'?'Lo porti anche oggi, ma continua a comparire nel suo giorno normale.':'La sua prossima visita si fa qui e non compare più nel suo giorno normale.';const q=$('#add-q');if(q&&q.value) $('#add-res').innerHTML=addResHTML(q.value)},
