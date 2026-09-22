@@ -151,6 +151,19 @@ input,select,textarea{font:inherit;color:inherit}
 .btn small{font-weight:500;opacity:.8}
 .btn:disabled{opacity:.45;cursor:default}
 
+.upd-bar{position:fixed;top:0;left:0;right:0;z-index:60;background:var(--oxy);color:#fff;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:calaGiu .35s ease-out}
+.upd-bar .t{flex:1 1 100%;font-weight:600;font-size:15px;line-height:1.3}
+.upd-bar .btn{min-height:40px;padding:0 14px;font-size:14px;background:#fff;color:var(--oxy);border-color:#fff}
+.upd-bar .btn.g{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+@keyframes calaGiu{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+.fab.mic{bottom:calc(138px + env(safe-area-inset-bottom,0px));background:var(--oxy);color:#fff}
+.fab.mic svg{width:22px;height:22px}
+.mic-big{width:118px;height:118px;border-radius:50%;border:0;background:var(--oxy);color:#fff;display:grid;place-items:center;margin:6px auto 14px;box-shadow:0 6px 20px rgba(10,124,193,.35)}
+.mic-big svg{width:52px;height:52px}
+.mic-big.on{background:#B42318;animation:pulsa 1.1s ease-in-out infinite}
+@keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.voce-txt{min-height:30px;text-align:center;font:600 19px/1.25 var(--f-cond);margin:0 0 10px}
+.voce-ex{font-size:14.5px;color:var(--muted);line-height:1.5}
 .fab{position:fixed;right:14px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:6;height:54px;padding:0 22px 0 18px;border-radius:27px;background:var(--ink);color:var(--bg);font:600 20px/1 var(--f-cond);display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .fab svg{width:22px;height:22px}
 
@@ -365,10 +378,14 @@ body.altrui .top{top:calc(env(safe-area-inset-top,0px) + 44px)}
   <img id="splash-logo" alt="MedicAir People">
   <div class="bar"><i></i></div>
   <div class="lbl" id="splash-lbl">Caricamento…</div>
-  <div class="credit">Software sviluppato e creato da Nicola Giuntoni<span class="ver">File del 22 set, ore 20</span><span class="ver" id="splash-ver"></span></div>
+  <div class="credit">Software sviluppato e creato da Nicola Giuntoni<span class="ver">File del 22 set, ore 23</span><span class="ver" id="splash-ver"></span></div>
 </div>
 <div class="app" id="app"></div>
 <nav class="nav" aria-label="Sezioni"><div class="nav-in" id="nav"></div></nav>
+<button class="fab mic" id="fab-mic" data-act="voce" aria-label="Comandi vocali" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3a3 3 0 013 3v6a3 3 0 01-6 0V6a3 3 0 013-3z"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+  Voce
+</button>
 <button class="fab" id="fab" data-act="aggiungi" hidden>
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
   Aggiungi al giro
@@ -1440,6 +1457,7 @@ function render(){
   $('#nav').innerHTML=navHTML();
   {const ni=$('#nav .nav-in')||$('#nav'); ni.classList.toggle('molti',(ni.children.length||0)>=8);}
   $('#fab').hidden = ui.tab!=='giro';
+  $('#fab-mic').hidden = !(ui.tab==='giro'||ui.tab==='pazienti');
   const app=$('#app');
   document.body.classList.toggle('altrui',inVistaAltrui());
   if(ui.tab==='giro') app.innerHTML=renderGiro();
@@ -1743,6 +1761,7 @@ function resoResHTML(q){
 function renderStorico(){
   let h=`<header class="page-h"><h1>Storico</h1><span class="sub">${S.storico.filter(x=>x.tipo==='consegna').length} consegne</span></header>`;
   h+=`<div class="search"><input id="st-q" type="search" placeholder="Cerca un paziente" value="${esc(ui.hq)}" autocomplete="off"></div>`;
+  h+=`<div class="seq-tools"><button class="btn" data-act="storico-scarica">Scarica storico</button></div>`;
   h+=`<div class="chips">${[['consegna','Consegne'],['rinvio','Altre operazioni'],['tutto','Tutto']].map(([k,l])=>`<button class="chip" data-act="hfiltro" data-f="${k}" aria-pressed="${ui.hf===k}">${l}</button>`).join('')}</div>`;
   h+=`<div id="st-list">${storicoListHTML()}</div>`;
   return h;
@@ -2004,6 +2023,123 @@ function eliminaPaziente(id){
   <div class="acts"><button class="act" style="border-color:var(--late);color:var(--late)" data-act="elimina-ok" data-id="${p.id}">Elimina</button><button class="act" data-act="chiudi">Annulla</button></div>`);
 }
 
+/* ---------- comandi vocali ---------- */
+let SR=null, srAttivo=false;
+function vocePossibile(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
+const VOCE_ES=[
+ ['Consegnato Rossi','segna la consegna'],
+ ['Rimanda Rossi a domani','oppure “alla prossima settimana”'],
+ ['Nasino Rossi','accende o spegne la N'],
+ ['Frequenza Rossi 28','cambia la F.G.'],
+ ['Bombola Rossi 2X31','cambia il CNT'],
+ ['Nota Rossi','apre la nota, poi detti il testo'],
+ ['Aggiungi Rossi al giro','lo mette nel giro di oggi'],
+ ['Reso Rossi','lo mette nei resi'],
+ ['Vacanza Rossi','lo mette in vacanza'],
+ ['Apri Rossi','apre la scheda']
+];
+function sheetVoce(){
+  if(!vocePossibile()){openSheet(`<h2>Comandi vocali</h2><p class="lead">Questo telefono o questo browser non supporta il riconoscimento vocale. Su Android funziona con Chrome e serve la connessione.</p><button class="btn block" data-act="chiudi">Ok</button>`);return}
+  openSheet(`<h2>Parla</h2>
+  <button class="mic-big" id="mic-b" data-act="voce-start" aria-label="Avvia ascolto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a3 3 0 013 3v6a3 3 0 01-6 0V6a3 3 0 013-3z"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+  <div class="voce-txt" id="voce-txt">Tocca il microfono e di’ il comando.</div>
+  <div id="voce-res"></div>
+  <div class="card"><h3 style="margin-top:0">Comandi</h3><div class="voce-ex">${VOCE_ES.map(([a,b])=>`<div><strong>${esc(a)}</strong> — ${esc(b)}</div>`).join('')}</div></div>`,
+  ()=>setTimeout(voceStart,250));
+}
+function voceStop(){ if(SR){try{SR.stop()}catch(e){}} srAttivo=false; const b=$('#mic-b'); b&&b.classList.remove('on'); }
+function voceStart(){
+  if(!vocePossibile()) return;
+  if(srAttivo){voceStop();return}
+  const C=window.SpeechRecognition||window.webkitSpeechRecognition;
+  try{ SR=new C(); }catch(e){ return }
+  SR.lang='it-IT'; SR.interimResults=true; SR.maxAlternatives=3; SR.continuous=false;
+  const txt=$('#voce-txt'), b=$('#mic-b');
+  srAttivo=true; b&&b.classList.add('on'); if(txt) txt.textContent='Ascolto…';
+  SR.onresult=e=>{
+    let fin='', par='';
+    for(const r of e.results){ if(r.isFinal) fin+=r[0].transcript; else par+=r[0].transcript; }
+    if(txt) txt.textContent=(fin||par||'…');
+    if(fin){ voceStop(); eseguiVoce(fin.trim()); }
+  };
+  SR.onerror=e=>{ voceStop(); if(txt) txt.textContent = e.error==='not-allowed'?'Devi dare il permesso al microfono.' : e.error==='no-speech'?'Non ho sentito niente. Riprova.' : 'Non riesco ad ascoltare ('+e.error+').'; };
+  SR.onend=()=>{ srAttivo=false; b&&b.classList.remove('on'); };
+  try{ SR.start(); }catch(e){ voceStop(); }
+}
+function voceEsito(html){ const r=$('#voce-res'); if(r) r.innerHTML=html; }
+function trovaPazienti(q){
+  const n=normTxt(q); if(!n) return [];
+  const inGiro=new Set(giroCorrente().map(p=>p.id));
+  const L=S.pazienti.filter(p=>{const t=normTxt(p.nome+' '+p.localita); return t.includes(n)||n.split(' ').every(w=>w.length>2&&t.includes(w))});
+  return L.sort((a,b)=>(inGiro.has(b.id)-inGiro.has(a.id))||a.nome.localeCompare(b.nome));
+}
+function voceScegli(L,azione,extra){
+  voceEsito(`<div class="card"><p style="margin:0 0 8px">Quale paziente?</p>${L.slice(0,6).map(p=>`<button class="btn block" style="margin-bottom:6px" data-act="voce-scegli" data-id="${p.id}" data-az="${azione}" data-ex="${esc(extra||'')}">${esc(p.nome)} — ${esc(titolo(p.localita))}</button>`).join('')}</div>`);
+}
+function eseguiVoce(frase){
+  const t=normTxt(frase).toLowerCase().replace(/\s+/g,' ').trim();
+  const $t=$('#voce-txt'); if($t) $t.textContent=frase;
+  const prove=[
+    [/^(?:segna(?:re)? )?(?:consegnato|consegnata|consegna|fatto|fatta)(?: a| da)? (.+)$/,'consegna'],
+    [/^(?:rimanda|rinvia|sposta)(?: a| da)? (.+?)(?: (?:a |al |alla )?(domani|prossima settimana|settimana prossima))?$/,'rimanda'],
+    [/^(?:nasino|nasini|naso) (.+)$/,'nasino'],
+    [/^attivazione (.+)$/,'attivazione'],
+    [/^(?:frequenza|fg|effe gi|effegi) (.+?) (\d+)(?: giorni)?$/,'fg'],
+    [/^(?:bombola|bombole|cnt|contenitore) (.+?) ([0-9a-z\s×x+]+)$/,'cnt'],
+    [/^(?:nota|note)(?: per| a)? (.+)$/,'nota'],
+    [/^(?:aggiungi|metti) (.+?) (?:al|nel) giro$/,'aggiungi'],
+    [/^(?:reso|resi|ritiro) (.+)$/,'reso'],
+    [/^ritirato (.+)$/,'ritirato'],
+    [/^(?:vacanza|ferie) (.+)$/,'vacanza'],
+    [/^(?:apri|cerca|scheda|mostra) (.+)$/,'apri']
+  ];
+  for(const [re,az] of prove){
+    const m=t.match(re);
+    if(m){
+      const L=trovaPazienti(m[1]);
+      if(!L.length){ voceEsito(`<div class="errbox">Non trovo nessun paziente che somigli a “${esc(m[1])}”.</div>`); return; }
+      const extra=m[2]||'';
+      if(L.length>1 && normTxt(L[0].nome)!==normTxt(m[1])){ voceScegli(L,az,extra); return; }
+      faiVoce(L[0].id,az,extra); return;
+    }
+  }
+  voceEsito(`<div class="errbox">Non ho capito il comando. Guarda gli esempi qui sotto.</div>`);
+}
+function faiVoce(id,az,extra){
+  const p=byId(id); if(!p) return;
+  const nome=p.nome;
+  if(az==='consegna'){ consegna(id); return; }
+  if(az==='rimanda'){ rimanda(id, /settimana/.test(extra||'')?7:1); return; }
+  if(az==='nasino'){ p.nasino=!p.nasino; save(); closeSheet(); render(); toast(p.nasino?`${nome}: portare il nasino.`:`${nome}: niente nasino.`); return; }
+  if(az==='attivazione'){ p.attivazione=!p.attivazione; save(); closeSheet(); render(); toast(p.attivazione?`${nome}: segnato come attivazione.`:`${nome}: attivazione tolta.`); return; }
+  if(az==='fg'){ const v=parseInt(extra,10); if(!v||v<1||v>365){voceEsito('<div class="errbox">Numero di giorni non valido.</div>');return}
+    const D=ui.day<todayISO()?todayISO():ui.day; const prima={fg:p.fg,prossima:p.prossima,spostata:p.spostata};
+    p.fg=v; p.prossima=D; p.spostata=null; const dopo=calcNext(p,D);
+    save(); closeSheet(); render(); toast(`${nome}: F.G. ${v}. Dopo la consegna di ${fmtShort(D)} la prossima sarà ${dopo?fmtShort(dopo):'da impostare'}.`,()=>{Object.assign(p,prima);save();render()}); return; }
+  if(az==='cnt'){ const v=cleanCnt(String(extra||'').replace(/ per /g,'X').replace(/×/g,'X').replace(/\s+/g,'')); if(!v){voceEsito('<div class="errbox">Non ho capito la bombola.</div>');return}
+    const prima=p.cnt; p.cnt=v; save(); closeSheet(); render(); toast(`${nome}: CNT ${v}.`,()=>{p.cnt=prima;save();render()}); return; }
+  if(az==='nota'){ closeSheet(); sheetNotaPaz(id); return; }
+  if(az==='aggiungi'){ aggiungiAlGiro(id); return; }
+  if(az==='reso'){ closeSheet(); sheetReso(id); return; }
+  if(az==='ritirato'){ if(!p.reso){voceEsito(`<div class="errbox">${esc(nome)} non è nei resi.</div>`);return} ritirato(id); return; }
+  if(az==='vacanza'){ closeSheet(); sheetVacanza(id); return; }
+  if(az==='apri'){ closeSheet(); sheetScheda(id); return; }
+}
+
+/* ---------- backup automatico ogni 7 giorni ---------- */
+const BKKEY='medicair.ultimoBackup';
+function segnaBackup(){ lsSet(BKKEY,todayISO()); }
+function controllaBackup(){
+  if(!S.pazienti.length) return;
+  const u=lsGet(BKKEY);
+  if(!u){ segnaBackup(); return; }
+  if(diffDays(todayISO(),u)<7) return;
+  if(!$('#sheet-root').hidden) return;
+  openSheet(`<h2>Backup settimanale</h2><p class="lead">L’ultimo backup è del ${fmtShort(u)}. Scaricane uno adesso e tienilo da parte: se perdi il telefono o sbagli qualcosa, con quel file rimetti tutto a posto in un attimo.</p>
+  <p class="hint">${S.pazienti.length} pazienti e ${S.storico.length} operazioni.</p>
+  <div class="acts"><button class="act go" data-act="backup-ora">Scarica il backup</button><button class="act" data-act="backup-dopo">Più tardi</button></div>`);
+}
+
 /* ---------- sequenza del giro ---------- */
 function seqDi(D){return (S.sequenze&&S.sequenze[D])||[]}
 function ordinaGiro(L,D){
@@ -2213,6 +2349,43 @@ async function saveFile(name,data,mime){
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
   return true;
 }
+const TIPO_IT={consegna:'Consegna',rinvio:'Rimandato',extra:'Aggiunto al giro',vacanza:'In vacanza',rientro:'Rientro da vacanza',reso:'Messo nei resi',ritirato:'Reso ritirato',nota:'Nota'};
+function sheetScaricaStorico(){
+  const T=todayISO(), mesi=[];
+  {const d=new Date(T+'T12:00:00');
+   for(let i=0;i<12;i++){const m=new Date(d.getFullYear(),d.getMonth()-i,1);const k=`${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,'0')}`;mesi.push([k,`${MESI[m.getMonth()]} ${m.getFullYear()}`])}}
+  openSheet(`<h2>Scarica lo storico</h2><p class="lead">Un file CSV con una riga per ogni operazione: si apre con Excel. ${inVistaAltrui()?`Riguarda il giro di ${esc(nomeVettore())}.`:''}</p>
+  <label class="field"><span>Periodo</span><select id="sx-tipo">
+    <option value="mese">Un mese</option><option value="giorno">Un giorno</option><option value="intervallo">Da… a…</option><option value="tutto">Tutto lo storico</option></select></label>
+  <label class="field" id="sx-f-mese"><span>Mese</span><select id="sx-mese">${mesi.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
+  <label class="field" id="sx-f-giorno" style="display:none"><span>Giorno</span><input type="date" id="sx-giorno" value="${T}"></label>
+  <div class="two" id="sx-f-int" style="display:none"><label class="field"><span>Dal</span><input type="date" id="sx-dal" value="${addDays(T,-30)}"></label><label class="field"><span>Al</span><input type="date" id="sx-al" value="${T}"></label></div>
+  <label class="checkline"><input type="checkbox" id="sx-solo" checked><span>Solo le consegne. Togli la spunta per avere anche rinvii, resi e vacanze.</span></label>
+  <div id="sx-err"></div>
+  <button class="btn primary block" data-act="storico-scarica-ok">Scarica CSV</button>`,
+  r=>{const t=$('#sx-tipo');t.addEventListener('change',()=>{
+    $('#sx-f-mese').style.display=t.value==='mese'?'':'none';
+    $('#sx-f-giorno').style.display=t.value==='giorno'?'':'none';
+    $('#sx-f-int').style.display=t.value==='intervallo'?'':'none';
+  })});
+}
+function scaricaStorico(){
+  const t=$('#sx-tipo').value, solo=$('#sx-solo').checked;
+  let dal='', al='', nome='';
+  if(t==='mese'){const m=$('#sx-mese').value; dal=m+'-01'; const d=new Date(+m.slice(0,4),+m.slice(5,7),0); al=`${m}-${String(d.getDate()).padStart(2,'0')}`; nome=m;}
+  else if(t==='giorno'){dal=al=$('#sx-giorno').value; nome=dal;}
+  else if(t==='intervallo'){dal=$('#sx-dal').value; al=$('#sx-al').value; if(!validISO(dal)||!validISO(al)||dal>al){$('#sx-err').innerHTML='<div class="errbox">Controlla le date: la prima deve venire prima della seconda.</div>';return} nome=dal+'_'+al;}
+  else {dal='0000-01-01'; al='9999-12-31'; nome='tutto';}
+  const L=S.storico.filter(x=>x.data>=dal&&x.data<=al&&(!solo||x.tipo==='consegna')).sort((a,b)=>a.data.localeCompare(b.data)||a.ts-b.ts);
+  if(!L.length){$('#sx-err').innerHTML='<div class="errbox">In quel periodo non c’è nessuna operazione.</div>';return}
+  const H=['DATA','GIORNO','PAZIENTE','LOCALITA','OPERAZIONE','BOMBOLE','QUANTITA','FG','PROSSIMA','NASINO','ATTIVAZIONE','NOTE'];
+  const rows=L.map(x=>[x.data,GIORNI[wd(x.data)]||'',x.nome,x.localita,(x.extra?'Consegna extra':TIPO_IT[x.tipo]||x.tipo),x.cnt||'',(x.tipo==='consegna'?riepilogo([x]).totale||'':''),x.fg||'',x.prossima||x.a||'',x.nasino?'SI':'',x.attivazione?'SI':'',x.note||''].map(csvField).join(','));
+  const tot=riepilogo(L.filter(x=>x.tipo==='consegna')).totale;
+  rows.push('');
+  rows.push([`TOTALE CONSEGNE`,L.filter(x=>x.tipo==='consegna').length,'','','','',tot].map(csvField).join(','));
+  const chi=inVistaAltrui()?nomeVettore().replace(/\s+/g,'_'):(nomeCompleto(utente)||'').replace(/\s+/g,'_');
+  saveFile(`Storico_${chi?chi+'_':''}${nome}.csv`,'\ufeff'+[H.join(','),...rows].join('\r\n'),'text/csv').then(ok=>{ if(ok){closeSheet();toast(`Storico scaricato: ${L.length} operazioni.`)} });
+}
 function csvField(v){const s=String(v ?? '');return /[",;\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function exportCSV(){
   const H=['NOME','LOCALITA','CNT','FG','GIORNO_FISSO','ULTIMA_VISITA','PROSSIMA_VISITA','RINVIO','NOTE','VACANZA_DAL','VACANZA_AL','GRUPPO','RESO_DAL','RESO_RITIRO','RESO_RITIRATO','GASSOSI'];
@@ -2222,7 +2395,7 @@ function exportCSV(){
 }
 function backup(){
   const data=JSON.stringify({app:'giro-ossigeno',v:1,esportato:new Date().toISOString(),...S});
-  saveFile(`Backup_Giro_${todayISO()}.json`,data,'application/json').then(ok=>ok&&toast('Backup scaricato.'));
+  saveFile(`Backup_Giro_${todayISO()}.json`,data,'application/json').then(ok=>{if(ok){segnaBackup();toast('Backup scaricato.')}});
 }
 async function ripristina(file){
   try{
@@ -2468,6 +2641,15 @@ const A={
   'scarica-foglio':()=>{const f=foglio(ui.day);saveFile(`Giro_${ui.day}.html`,f.doc,'text/html').then(ok=>ok&&toast('Foglio scaricato: aprilo e stampalo.'));closeSheet()},
   backup:()=>backup(),
   'export-csv':()=>exportCSV(),
+  'storico-scarica':()=>sheetScaricaStorico(),
+  voce:()=>sheetVoce(),
+  'voce-start':()=>voceStart(),
+  'voce-scegli':b=>faiVoce(b.dataset.id,b.dataset.az,b.dataset.ex||''),
+  'backup-ora':()=>{backup();segnaBackup();closeSheet()},
+  'upd-ora':()=>aggiornaApp(),
+  'upd-dopo':()=>{const b=document.getElementById('upd-bar'); if(b) b.remove(); lsSet('medicair.updRinvio',String(Date.now()+30*60*1000)); toast('Te lo ricordo tra mezz’ora.')},
+  'backup-dopo':()=>{try{lsSet(BKKEY,addDays(todayISO(),-6))}catch(e){} closeSheet()},
+  'storico-scarica-ok':()=>scaricaStorico(),
   ripristina:()=>{const i=$('#file-backup');i.value='';i.click()},
   'ripristina-ok':()=>{if(!pendingRestore)return;const s=pendingRestore;S={v:1,pazienti:s.pazienti,storico:s.storico||[],dismissed:s.dismissed||[],mappe:s.mappe||{},creato:s.creato||todayISO(),patch:s.patch||[]};applicaCorrezioni(S);pendingRestore=null;if(CLOUD&&utente){S._synced=S._synced||0;S._hashMesi={}}save();closeSheet();render();toast('Backup ripristinato.')},
   importa:()=>{const i=$('#file-import');i.value='';i.click()},
@@ -2496,7 +2678,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet-root').h
 $('#pick-day').addEventListener('change',e=>{if(validISO(e.target.value)){ui.day=e.target.value;ui.follow=ui.day===todayISO();ui.tab='giro';render()}});
 $('#file-import').addEventListener('change',e=>{const f=e.target.files[0];if(f) leggiImport(f)});
 $('#file-backup').addEventListener('change',e=>{const f=e.target.files[0];if(f) ripristina(f)});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&CLOUD&&utente&&S._dirty){invia()} if(document.visibilityState==='visible'){ caricaMeteo(); if(CLOUD&&utente&&navigator.onLine&&!$('#splash')) scarica().then(()=>render());if(ui.follow&&ui.day!==todayISO()) ui.day=todayISO();render()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&CLOUD&&utente&&S._dirty){invia()} if(document.visibilityState==='visible'){ cercaAggiornamento(); caricaMeteo(); if(CLOUD&&utente&&navigator.onLine&&!$('#splash')) scarica().then(()=>render());if(ui.follow&&ui.day!==todayISO()) ui.day=todayISO();render()}});
 window.addEventListener('storage',e=>{if(e.key===KEY){S=load();render()}});
 window.addEventListener('online',async()=>{ if(!CLOUD) return; if(!utente){return} const c=clientCloud(); if(c){ try{await c.auth.getSession()}catch(e){} } await scarica(); render(); });
 window.addEventListener('offline',()=>{ if(CLOUD&&utente){statoSync='offline';aggiornaSyncUI()} });
@@ -2512,6 +2694,29 @@ async function leggiVersione(){
     if(r && r.ok){const t=(await r.text()).split(/\r?\n/)[0].trim().slice(0,20); if(t) return t;}
   }catch(e){}
   return null;
+}
+let updVista=null, updTimer=null;
+function barraAggiornamento(v){
+  if(document.getElementById('upd-bar')) return;
+  const d=document.createElement('div');
+  d.className='upd-bar'; d.id='upd-bar';
+  d.innerHTML=`<span class="t">È disponibile la versione ${esc(v)} dell’app.</span><button class="btn" data-act="upd-ora">Aggiorna ora</button><button class="btn g" data-act="upd-dopo">Rimanda</button>`;
+  document.body.appendChild(d);
+}
+async function aggiornaApp(){
+  const b=document.querySelector('#upd-bar .btn'); if(b){b.textContent='Aggiorno…';b.disabled=true}
+  try{ if('serviceWorker' in navigator){ const reg=await conTimeout(navigator.serviceWorker.getRegistration(),4000);
+    if(reg){ await conTimeout(reg.update(),6000); if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); } } }catch(e){}
+  try{ if(window.caches){ const k=await caches.keys(); for(const x of k) await caches.delete(x); } }catch(e){}
+  try{ if(updVista) localStorage.setItem(VKEY,updVista); }catch(e){}
+  location.replace(location.pathname+'?v='+encodeURIComponent(updVista||Date.now()));
+}
+async function cercaAggiornamento(){
+  if(!PWA || !navigator.onLine || document.getElementById('upd-bar')) return;
+  const v=await leggiVersione();
+  const fino=+(lsGet('medicair.updRinvio')||0);
+  if(Date.now()<fino) return;
+  if(v && v!==versioneApp){ updVista=v; barraAggiornamento(v); }
 }
 async function controllaAggiornamentoApp(){
   if(!PWA || !('serviceWorker' in navigator)) return;
@@ -2546,7 +2751,8 @@ window.__avviata=true;
   const bar=sp.querySelector('.bar i'); bar.classList.add('fine');
   if(upd){ lbl.textContent='Aggiornato alla versione '+upd; await new Promise(r=>setTimeout(r,1400)); }
   else await new Promise(r=>setTimeout(r,350));
-  if(serveLogin) mostraLogin(); else render();
+  if(serveLogin) mostraLogin(); else { render(); setTimeout(controllaBackup,3000); }
+  if(PWA){ updTimer=setInterval(cercaAggiornamento,5*60*1000); setTimeout(cercaAggiornamento,60*1000); }
   sp.classList.add('out'); setTimeout(()=>{sp.remove(); if(serveLogin) return; if(CLOUD&&utente&&!utente.nome&&navigator.onLine){sheetPrimoProfilo();return} if(CLOUD&&utente&&(proponiRecupero||!S.pazienti.length)){proponiRecupero=false;sheetRecupero(true);return} popupInstalla(); setTimeout(()=>popupInstalla(true),3000);},500);
 })();
 if(CLOUD){ S=seedState(); } else { S = load(); save(); }
