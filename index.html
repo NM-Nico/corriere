@@ -66,7 +66,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
 [hidden]{display:none !important}
-.app{max-width:760px;margin:0 auto;padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+.app{max-width:760px;margin:0 auto;padding-bottom:calc(166px + env(safe-area-inset-bottom,0px))}
 
 /* Header del giro */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--oxy);color:var(--oxy-ink);padding:5px 8px 7px}
@@ -166,7 +166,7 @@ input,select,textarea{font:inherit;color:inherit}
 .upd-scr .vv{font:700 22px var(--f-cond);color:var(--oxy)}
 @keyframes sfuma{from{opacity:0}to{opacity:1}}
 @keyframes saleSu{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
-.fab.mic{bottom:calc(138px + env(safe-area-inset-bottom,0px));background:var(--oxy);color:#fff}
+.fab.mic{bottom:calc(154px + env(safe-area-inset-bottom,0px));background:var(--oxy);color:#fff}
 .fab.mic svg{width:22px;height:22px}
 .mic-big{width:118px;height:118px;border-radius:50%;border:0;background:var(--oxy);color:#fff;display:grid;place-items:center;margin:6px auto 14px;box-shadow:0 6px 20px rgba(10,124,193,.35)}
 .mic-big svg{width:52px;height:52px}
@@ -174,17 +174,18 @@ input,select,textarea{font:inherit;color:inherit}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
 .voce-txt{min-height:30px;text-align:center;font:600 19px/1.25 var(--f-cond);margin:0 0 10px}
 .voce-ex{font-size:14.5px;color:var(--muted);line-height:1.5}
-.fab{position:fixed;right:14px;bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:6;height:54px;padding:0 22px 0 18px;border-radius:27px;background:var(--ink);color:var(--bg);font:600 20px/1 var(--f-cond);display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.fab{position:fixed;right:14px;bottom:calc(90px + env(safe-area-inset-bottom,0px));z-index:6;height:54px;padding:0 22px 0 18px;border-radius:27px;background:var(--ink);color:var(--bg);font:600 20px/1 var(--f-cond);display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .fab svg{width:22px;height:22px}
 
 /* Navigazione */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.nav-in{max-width:760px;margin:0 auto;display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
+.nav-in{max-width:1000px;margin:0 auto;display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
 .prof-head{display:flex;align-items:center;gap:14px}
-.nav-in.molti button span{font-size:10.5px}
-.nav-in.molti button svg{width:22px;height:22px}
-.nav-in.pienissima button span{font-size:9.5px}
-.nav-in.pienissima button svg{width:20px;height:20px}
+.nav-in.molti button span{font-size:12px}
+.nav-in.molti button svg{width:27px;height:27px}
+.nav-in.pienissima button span{font-size:11px}
+.nav-in.pienissima button svg{width:25px;height:25px}
+@media (max-width:420px){.nav-in.molti button span{font-size:10.5px}.nav-in.pienissima button span{font-size:9.5px}.nav-in.pienissima button svg{width:22px;height:22px}}
 .adm-row{display:flex;gap:12px;align-items:flex-start}
 .adm-row .avatar{width:44px;height:44px;font-size:17px}
 .adm-row .nm{font:700 19px/1.15 var(--f-cond)}
@@ -198,7 +199,7 @@ input,select,textarea{font:inherit;color:inherit}
 .pw-row{position:relative}
 .pw-row input{padding-right:84px}
 .pw-eye{position:absolute;right:6px;bottom:6px;height:36px;padding:0 10px;border-radius:8px;font-weight:600;font-size:13px;color:var(--oxy);background:none;border:0}
-.nav button span{font-size:12px}
+.nav button span{font-size:13.5px}
 .tag.vc{background:#D8F1EC;color:#0D6457}
 .tag.rs{background:#EEE6F7;color:#5B3A8C}
 :root[data-theme="dark"] .tag.rs{background:#2E2340;color:#CDB6F0}
@@ -209,11 +210,11 @@ input,select,textarea{font:inherit;color:inherit}
 .vrow-top{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
 .vrow .btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .vrow .btns .btn{min-height:44px}
-.nav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;font-size:13px;font-weight:600;color:var(--muted);min-height:58px}
-.nav button svg{width:24px;height:24px}
+.nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:11px 0 10px;font-size:14px;font-weight:600;color:var(--muted);min-height:74px}
+.nav button svg{width:29px;height:29px}
 .nav button[aria-current="page"]{color:var(--oxy)}
 .nav button{position:relative}
-.nav .badge{position:absolute;top:3px;left:calc(50% + 6px);margin:0}
+.nav .badge{position:absolute;top:6px;left:calc(50% + 8px);margin:0;min-width:20px;font-size:12px;line-height:20px;border-radius:10px}
 .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--late);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:3px}
 
 /* Pagine */
@@ -333,6 +334,8 @@ table.carico tr.tot td{border-bottom:0;font-weight:700}
 .bg2{display:flex;gap:5px;align-items:stretch}
 .nas{display:inline-grid;place-items:center;min-width:34px;border:2px dashed var(--line);border-radius:9px;background:var(--surface);color:var(--muted);font:700 19px/1 var(--f-cond)}
 .nas.on{border:2px solid #047857;background:#047857;color:#fff}
+.nas.str.on{border-color:#1D4ED8;background:#1D4ED8}
+.nas.str.ro{border-color:#1D4ED8;color:#1D4ED8}
 .nas.ro{border-style:solid;border-color:#047857;color:#047857;background:transparent}
 .nas.att{min-width:0;padding:4px 9px;border-radius:9px;font:700 14px/1.1 var(--f-cond);letter-spacing:.03em}
 @media (max-width:559px){.nas.att{padding:2px 6px;font-size:11.5px}}
@@ -959,7 +962,7 @@ async function caricaAdmin(){
         const g=giroDi(T), pf=r.dati&&r.dati.profilo;
         stat[r.user_id]={email:r.email||'',profilo:pf||null,
           fare:riepilogo([...g.senzaData,...g.arretrati,...g.delGiorno,...g.extra]).totale,
-          fatti:riepilogo(g.fatti.filter(h=>h.tipo==='consegna')).totale,
+          fatti:totBombole(g.fatti.filter(h=>h.tipo==='consegna')),
           arr:g.arretrati.length, paz:S.pazienti.length, agg:r.aggiornato};
       }
     } finally { S=salva; }
@@ -1215,21 +1218,50 @@ function rinvioDate(p,D,n){
   return r;
 }
 function dataOperazione(D){const T=todayISO();return D<T?D:T}
-function snap(p){return {ultima:p.ultima, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null, vacanza:p.vacanza?{...p.vacanza}:null, reso:p.reso?{...p.reso}:null, extra:p.extra?[...p.extra]:null, nasino:!!p.nasino, attivazione:!!p.attivazione}}
+function snap(p){return {ultima:p.ultima, prossima:p.prossima, spostata:p.spostata?{...p.spostata}:null, vacanza:p.vacanza?{...p.vacanza}:null, reso:p.reso?{...p.reso}:null, extra:p.extra?[...p.extra]:null, nasino:!!p.nasino, stroller:!!p.stroller, attivazione:!!p.attivazione, ospiti:p.ospiti?JSON.parse(JSON.stringify(p.ospiti)):null}}
 function logOp(h){S.storico.unshift(Object.assign({id:uid(), ts:Date.now()},h))}
 
-function consegna(id){
+function totBombole(L){
+  let t=riepilogo(L.filter(h=>!h.qta)).totale||0;
+  for(const h of L) if(h.qta) t+=h.qta;
+  return t;
+}
+let qsSel=new Set();
+function sheetQtaStruttura(id){
   const p=byId(id); if(!p) return;
+  const L=p.ospiti||[];
+  qsSel=new Set(L.map(o=>o.id));
+  const sug=L.length||riepilogo([{cnt:p.cnt}]).totale||0;
+  openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${L.length?'Spunta chi hai servito oggi e controlla il totale delle bombole. Serve per il conteggio della giornata: il CNT della struttura non cambia.':'Quante bombole hai lasciato oggi? Serve solo per il conteggio della giornata: il CNT non cambia.'}</p>
+  ${L.length?`<div id="qs-lista" style="margin:0 0 14px">${L.map(o=>`<button class="osp-row" style="width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line)" data-act="qs-osp" data-oid="${o.id}">
+    <span class="nas on" id="qs-c-${o.id}" style="min-width:34px">✓</span>
+    <span class="n"><b>${esc(o.nome)}</b><span>${esc((o.cnt||'—').replace(/X/g,'×'))}${o.note?' · '+esc(o.note):''}${o.ultima?' · ultima '+fmtShort(o.ultima):''}</span></span></button>`).join('')}
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" style="flex:1;min-height:40px" data-act="qs-tutti" data-id="${p.id}">Tutti</button><button class="btn" style="flex:1;min-height:40px" data-act="qs-nessuno" data-id="${p.id}">Nessuno</button></div></div>`:''}
+  <label class="field"><span>Bombole consegnate</span><input type="number" id="qs-n" inputmode="numeric" min="0" max="999" value="${sug}"><span class="quick">${[1,2,3,4,5,6,8,10].map(n=>`<button type="button" data-act="qs-set" data-v="${n}">${n}</button>`).join('')}</span></label>
+  <p class="hint">In archivio la struttura resta ${esc((p.cnt||'?').replace(/X/g,'×'))}${L.length?`, ${L.length} ${L.length===1?'ospite':'ospiti'}`:''}.</p>
+  <button class="btn primary block" data-act="qs-ok" data-id="${p.id}">Segna consegnato</button>`);
+}
+function qsAggiorna(id){
+  const p=byId(id); if(!p) return;
+  for(const o of (p.ospiti||[])){ const el=document.getElementById('qs-c-'+o.id); if(!el) continue;
+    const on=qsSel.has(o.id); el.className='nas'+(on?' on':''); el.textContent=on?'✓':''; }
+  const n=$('#qs-n'); if(n) n.value=qsSel.size;
+}
+function consegna(id,qta,ospIds){
+  const p=byId(id); if(!p) return;
+  if(p.struttura && qta===undefined){ sheetQtaStruttura(id); return; }
   const d=dataOperazione(ui.day);
+  let ospServiti=null;
+  if(p.struttura && ospIds && ospIds.length){ ospServiti=[]; for(const o of (p.ospiti||[])) if(ospIds.includes(o.id)){ o.ultima=d; ospServiti.push(o.nome); } }
   const prima=snap(p);
   if(p.vacanza){p.prossima='';}
   const next=calcNext(p,d);
-  const nas=!!p.nasino, att=!!p.attivazione;
-  p.ultima=d; p.prossima=next; p.spostata=null; p.vacanza=null; p.nasino=false; p.attivazione=false;
-  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, nasino:nas||undefined, attivazione:att||undefined, data:d, giro:ui.day, prossima:next, prima});
+  const nas=!!p.nasino, att=!!p.attivazione, str=!!p.stroller;
+  p.ultima=d; p.prossima=next; p.spostata=null; p.vacanza=null; p.nasino=false; p.attivazione=false; p.stroller=false;
+  logOp({tipo:'consegna', pid:p.id, nome:p.nome, localita:p.localita, cnt:p.cnt, gas:p.gas||null, note:p.note, fg:p.fg, nasino:nas||undefined, stroller:str||undefined, attivazione:att||undefined, qta:(qta||undefined), ospiti:(ospServiti&&ospServiti.length?ospServiti:undefined), data:d, giro:ui.day, prossima:next, prima});
   save(); closeSheet(); render();
   const hid=S.storico[0].id;
-  toast(next ? `${p.nome}: consegnato. Prossima ${fmtShort(next)}.` : `${p.nome}: consegnato. Manca la F.G.: imposta la prossima visita nella scheda.`, ()=>annulla(hid));
+  toast(next ? `${p.nome}: consegnato${qta?` (${qta} ${qta===1?'bombola':'bombole'})`:''}. Prossima ${fmtShort(next)}.` : `${p.nome}: consegnato. Manca la F.G.: imposta la prossima visita nella scheda.`, ()=>annulla(hid));
 }
 function rimanda(id,n,dataFissa){
   const p=byId(id); if(!p) return;
@@ -1355,7 +1387,7 @@ function annulla(hid){
   const h=S.storico.find(x=>x.id===hid); if(!h) return;
   if(!canUndo(h)){toast('Si può annullare solo l’ultima operazione di ogni paziente.');return}
   const p=byId(h.pid);
-  p.ultima=h.prima.ultima; p.prossima=h.prima.prossima; p.spostata=h.prima.spostata; p.vacanza=h.prima.vacanza||null; p.reso=h.prima.reso||null; if(h.prima.nasino!==undefined) p.nasino=h.prima.nasino||false; if(h.prima.attivazione!==undefined) p.attivazione=h.prima.attivazione||false; if(h.prima.extra!==undefined){ if(h.prima.extra&&h.prima.extra.length) p.extra=[...h.prima.extra]; else delete p.extra; }
+  p.ultima=h.prima.ultima; p.prossima=h.prima.prossima; p.spostata=h.prima.spostata; p.vacanza=h.prima.vacanza||null; p.reso=h.prima.reso||null; if(h.prima.nasino!==undefined) p.nasino=h.prima.nasino||false; if(h.prima.stroller!==undefined) p.stroller=h.prima.stroller||false; if(h.prima.ospiti) p.ospiti=h.prima.ospiti; if(h.prima.attivazione!==undefined) p.attivazione=h.prima.attivazione||false; if(h.prima.extra!==undefined){ if(h.prima.extra&&h.prima.extra.length) p.extra=[...h.prima.extra]; else delete p.extra; }
   S.storico=S.storico.filter(x=>x!==h);
   save(); closeSheet(); render();
   toast(`Annullato: ${p.nome}.`);
@@ -1563,7 +1595,7 @@ function rowHTML(p,kind,num){
       <span class="meta">${meta.join('. ')}</span>
     </button>
     <span class="loc${String(p.localita).length>11?' long':''}">${esc(titolo(p.localita))}</span>
-    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):`<span class="bg2">${p.struttura?`<button class="bwrap osp" data-act="ospiti" data-id="${p.id}" aria-label="Ospiti di ${esc(p.nome)}">${(p.ospiti||[]).length} OSPITI</button>`:''}<button class="bwrap giro-nota paz${p.note?'':' vuota'}" data-act="edit-nota-paz" data-id="${p.id}" aria-label="${p.note?'Nota di':'Aggiungi nota a'} ${esc(p.nome)}">${p.note?esc(p.note):'Aggiungi nota'}</button>${notaGiroDi(p,D)?`<button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota ${esc(p.nome)}">${esc(notaGiroDi(p,D))}</button>`:''}${p.attivazione?`<span class="nas on att" aria-label="Attivazione ${esc(p.nome)}">ATTIVAZIONE</span>`:`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}${p.nasino?': sì':''}">N</button>`}<button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button></span><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
+    <span class="badges">${kind==='reso'?cntBadge(p.reso.cnt):`<span class="bg2">${p.struttura?`<button class="bwrap osp" data-act="ospiti" data-id="${p.id}" aria-label="Ospiti di ${esc(p.nome)}">${(p.ospiti||[]).length} OSPITI</button>`:''}<button class="bwrap giro-nota paz${p.note?'':' vuota'}" data-act="edit-nota-paz" data-id="${p.id}" aria-label="${p.note?'Nota di':'Aggiungi nota a'} ${esc(p.nome)}">${p.note?esc(p.note):'Aggiungi nota'}</button>${notaGiroDi(p,D)?`<button class="bwrap giro-nota" data-act="edit-nota-giro" data-id="${p.id}" aria-label="Modifica nota ${esc(p.nome)}">${esc(notaGiroDi(p,D))}</button>`:''}${p.attivazione?`<span class="nas on att" aria-label="Attivazione ${esc(p.nome)}">ATTIVAZIONE</span>`:`<button class="bwrap nas${p.nasino?' on':''}" data-act="nasino" data-id="${p.id}" aria-pressed="${p.nasino?'true':'false'}" aria-label="Nasino ${esc(p.nome)}${p.nasino?': sì':''}">N</button>`}<button class="bwrap nas str${p.stroller?' on':''}" data-act="stroller" data-id="${p.id}" aria-pressed="${p.stroller?'true':'false'}" aria-label="Stroller ${esc(p.nome)}${p.stroller?': sì':''}">S</button><button class="bwrap" data-act="edit-fg" data-id="${p.id}" aria-label="Modifica F.G. ${esc(p.nome)}">${fgBadge(p.fg)}</button></span><button class="bwrap" data-act="edit-cnt" data-id="${p.id}" aria-label="Modifica CNT ${esc(p.nome)}">${cntBadge(p.cnt)}</button>`}</span>
   </div>`;
 }
 function doneRowHTML(h){
@@ -1572,11 +1604,11 @@ function doneRowHTML(h){
     <span class="check" aria-hidden="true">${ICON_CHECK}</span>
     <div class="row-main">
       <span class="nome">${esc(h.nome)}</span>
-      <span class="meta">${h.tipo==='ritirato'?`<span class="tag rs">Reso ritirato</span>`:`${h.extra?'<span class="tag vc">Extra</span>':''}${h.extra?'Giro normale':'Prossima'} ${fmtShort(h.prossima)}`}</span>
+      <span class="meta">${h.tipo==='ritirato'?`<span class="tag rs">Reso ritirato</span>`:`${h.extra?'<span class="tag vc">Extra</span>':''}${h.qta?`<span class="tag ok">${h.qta} ${h.qta===1?'bombola':'bombole'}</span>`:''}${h.extra?'Giro normale':'Prossima'} ${fmtShort(h.prossima)}`}</span>
       ${undo?`<button class="undo-btn" data-act="annulla" data-hid="${h.id}">${h.tipo==='ritirato'?'Annulla ritiro':'Annulla consegna'}</button>`:''}
     </div>
     <span class="loc${String(h.localita).length>11?' long':''}">${esc(titolo(h.localita))}</span>
-    <span class="badges">${h.tipo==='ritirato'?'':`<span class="bg2">${h.nasino?'<span class="nas ro" aria-label="Nasino portato">N</span>':''}${fgBadge(h.fg)}</span>`}${cntBadge(h.cnt)}</span>
+    <span class="badges">${h.tipo==='ritirato'?'':`<span class="bg2">${h.nasino?'<span class="nas ro" aria-label="Nasino portato">N</span>':''}${h.stroller?'<span class="nas str ro" aria-label="Stroller portato">S</span>':''}${fgBadge(h.fg)}</span>`}${cntBadge(h.cnt)}</span>
   </div>`;
 }
 function gruppiLocalita(list){
@@ -1593,7 +1625,7 @@ function renderGiro(){
   const rim=rimandatiDa(D);
   const car=riepilogo([...g.senzaData,...g.arretrati,...g.delGiorno,...g.extra,...g.fatti.filter(h=>h.tipo==='consegna')]);
   const bombDaFare=riepilogo([...g.senzaData,...g.arretrati,...g.delGiorno,...g.extra]).totale;
-  const bombFatte=riepilogo(g.fatti.filter(h=>h.tipo==='consegna')).totale;
+  const bombFatte=totBombole(g.fatti.filter(h=>h.tipo==='consegna'));
   const mon=addDays(D,-((wd(D)+6)%7));
   const days=[];
   for(let i=0;i<6;i++){const d=addDays(mon,i);const c=contaGiorno(d,idx);if(i===5 && !c.n && d!==D) continue;days.push({d,...c})}
@@ -1615,7 +1647,7 @@ function renderGiro(){
     <div class="stat"><b>${bombDaFare}</b><span>da dare</span></div>
     <div class="stat"><b>${bombFatte}</b><span>consegnati</span></div>
     <button class="stat stat-btn${rim.length?' warn':''}" data-act="rimandati"><b>${rim.length}</b><span>rimandati</span></button>
-    <button class="stat stat-btn" data-act="carico"><b>${car.totale}</b><span>bombole</span></button>
+    <button class="stat stat-btn" data-act="carico"><b>${bombDaFare+bombFatte}</b><span>bombole</span></button>
   </div>`;
   h+=storageWarn();
   if(g.senzaData.length){
@@ -1934,7 +1966,8 @@ function sheetAzioniFatto(hid,pid){
   const p=byId(pid);
   if(!p){ toast('La scheda di questo paziente non esiste più.'); return; }
   const undo=canUndo(h);
-  openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${esc(titolo(p.localita))}. ${h.tipo==='ritirato'?`Reso ritirato il ${fmtShort(h.data)}.`:`Consegnato il ${fmtShort(h.data)}${h.prossima?`, prossima ${fmtShort(h.prossima)}`:''}.`}</p>
+  openSheet(`<h2>${esc(p.nome)}</h2><p class="lead">${esc(titolo(p.localita))}. ${h.tipo==='ritirato'?`Reso ritirato il ${fmtShort(h.data)}.`:`Consegnato il ${fmtShort(h.data)}${h.qta?`, ${h.qta} ${h.qta===1?'bombola':'bombole'}`:''}${h.prossima?`, prossima ${fmtShort(h.prossima)}`:''}.`}</p>
+  ${h.ospiti&&h.ospiti.length?`<p class="hint" style="margin:-6px 0 12px">Serviti: ${esc(h.ospiti.join(', '))}</p>`:''}
   ${p.struttura?`<div style="margin:0 0 12px"><button class="btn block" data-act="ospiti" data-id="${p.id}">Ospiti della struttura (${(p.ospiti||[]).length})</button></div>`:''}
   <div class="acts">
     <button class="act" data-act="edit-cnt" data-id="${p.id}">Cambia il CNT <small>ora ${esc(p.cnt||'?')}</small></button>
@@ -2227,11 +2260,17 @@ function controllaBackup(){
 function seqDi(D){return (S.sequenze&&S.sequenze[D])||[]}
 function ordinaGiro(L,D){
   const ord=seqDi(D||ui.day), pos=new Map(ord.map((id,i)=>[id,i]));
-  return [...L].sort((a,b)=>{
-    const pa=pos.has(a.id)?pos.get(a.id):Infinity, pb=pos.has(b.id)?pos.get(b.id):Infinity;
-    if(pa!==pb) return pa-pb;
-    return normTxt(a.localita).localeCompare(normTxt(b.localita))||a.nome.localeCompare(b.nome);
-  });
+  const dentro=[...L].filter(p=>pos.has(p.id)).sort((a,b)=>pos.get(a.id)-pos.get(b.id));
+  const fuori=[...L].filter(p=>!pos.has(p.id)).sort((a,b)=>normTxt(a.localita).localeCompare(normTxt(b.localita))||a.nome.localeCompare(b.nome));
+  if(!dentro.length) return fuori;
+  const out=[...dentro];
+  for(const p of fuori){
+    const loc=normTxt(p.localita);
+    let i=-1;
+    for(let k=out.length-1;k>=0;k--) if(normTxt(out[k].localita)===loc){i=k;break}
+    if(i>=0) out.splice(i+1,0,p); else out.push(p);
+  }
+  return out;
 }
 function giroCorrente(){const g=giroDi(ui.day);return ordinaGiro([...g.delGiorno,...g.extra])}
 function salvaSequenza(){
@@ -2518,9 +2557,9 @@ function scaricaStorico(){
   else {dal='0000-01-01'; al='9999-12-31'; nome='tutto';}
   const L=S.storico.filter(x=>x.data>=dal&&x.data<=al&&(!solo||x.tipo==='consegna')).sort((a,b)=>a.data.localeCompare(b.data)||a.ts-b.ts);
   if(!L.length){$('#sx-err').innerHTML='<div class="errbox">In quel periodo non c’è nessuna operazione.</div>';return}
-  const H=['DATA','GIORNO','PAZIENTE','LOCALITA','OPERAZIONE','BOMBOLE','QUANTITA','FG','PROSSIMA','NASINO','ATTIVAZIONE','NOTE'];
-  const rows=L.map(x=>[x.data,GIORNI[wd(x.data)]||'',x.nome,x.localita,(x.extra?'Consegna extra':TIPO_IT[x.tipo]||x.tipo),x.cnt||'',(x.tipo==='consegna'?riepilogo([x]).totale||'':''),x.fg||'',x.prossima||x.a||'',x.nasino?'SI':'',x.attivazione?'SI':'',x.note||''].map(csvField).join(','));
-  const tot=riepilogo(L.filter(x=>x.tipo==='consegna')).totale;
+  const H=['DATA','GIORNO','PAZIENTE','LOCALITA','OPERAZIONE','BOMBOLE','QUANTITA','FG','PROSSIMA','NASINO','STROLLER','ATTIVAZIONE','OSPITI_SERVITI','NOTE'];
+  const rows=L.map(x=>[x.data,GIORNI[wd(x.data)]||'',x.nome,x.localita,(x.extra?'Consegna extra':TIPO_IT[x.tipo]||x.tipo),x.cnt||'',(x.tipo==='consegna'?(x.qta||riepilogo([x]).totale||''):''),x.fg||'',x.prossima||x.a||'',x.nasino?'SI':'',x.stroller?'SI':'',x.attivazione?'SI':'',(x.ospiti&&x.ospiti.length?x.ospiti.join('; '):''),x.note||''].map(csvField).join(','));
+  const tot=totBombole(L.filter(x=>x.tipo==='consegna'));
   rows.push('');
   rows.push([`TOTALE CONSEGNE`,L.filter(x=>x.tipo==='consegna').length,'','','','',tot].map(csvField).join(','));
   const chi=inVistaAltrui()?nomeVettore().replace(/\s+/g,'_'):(nomeCompleto(utente)||'').replace(/\s+/g,'_');
@@ -2700,6 +2739,11 @@ const A={
   'azioni-fatto':b=>sheetAzioniFatto(b.dataset.hid,b.dataset.id),
   ospiti:b=>sheetOspiti(b.dataset.id),
   'osp-add':b=>aggiungiOspite(b.dataset.id),
+  'qs-set':b=>{$('#qs-n').value=b.dataset.v},
+  'qs-osp':b=>{const oid=b.dataset.oid; if(qsSel.has(oid)) qsSel.delete(oid); else qsSel.add(oid); qsAggiorna(b.closest('.sheet')?.querySelector('[data-act="qs-ok"]')?.dataset.id)},
+  'qs-tutti':b=>{const p=byId(b.dataset.id); qsSel=new Set((p.ospiti||[]).map(o=>o.id)); qsAggiorna(b.dataset.id)},
+  'qs-nessuno':b=>{qsSel=new Set(); qsAggiorna(b.dataset.id)},
+  'qs-ok':b=>{const n=parseInt(($('#qs-n')||{}).value,10); if(!(n>=0)){toast('Scrivi quante bombole hai lasciato.');return} consegna(b.dataset.id,n,[...qsSel])},
   'osp-mod':b=>sheetOspiteMod(b.dataset.id,b.dataset.oid),
   'osp-mod-ok':b=>salvaOspite(b.dataset.id,b.dataset.oid),
   'osp-del':b=>togliOspite(b.dataset.id,b.dataset.oid),
@@ -2766,6 +2810,7 @@ const A={
   'rs-set-cnt':b=>{$('#rs-cnt').value=b.dataset.v},
   'edit-fg':b=>sheetEditFg(b.dataset.id),
   attivazione:b=>{const p=byId(b.dataset.id); if(!p) return; p.attivazione=!p.attivazione; save(); closeSheet(); render(); toast(p.attivazione?`${p.nome}: segnato come attivazione.`:`${p.nome}: attivazione tolta.`)},
+  stroller:b=>{const p=byId(b.dataset.id); if(!p) return; p.stroller=!p.stroller; save(); render(); toast(p.stroller?`${p.nome}: portare lo stroller.`:`${p.nome}: niente stroller.`)},
   nasino:b=>{const p=byId(b.dataset.id); if(!p) return; p.nasino=!p.nasino; save(); render(); toast(p.nasino?`${p.nome}: portare il nasino.`:`${p.nome}: niente nasino.`)},
   'edit-cnt':b=>sheetEditCnt(b.dataset.id),
   'fg-set':b=>{$('#fg-in').value=b.dataset.v},
